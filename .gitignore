@@ -1,0 +1,8 @@
+node_modules/
+.browser-test-tmp/
+.chrome-clean-cache/
+.chrome-clean-profile/
+.chrome-test-cache/
+.chrome-test-profile/
+.DS_Store
+.env
