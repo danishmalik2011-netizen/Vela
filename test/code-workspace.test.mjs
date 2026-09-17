@@ -48,3 +48,37 @@ test("accepts or rejects patches without hidden mutation", () => {
   assert.equal(rejected.files[0].content, "one");
   assert.equal(rejected.patch, null);
 });
+
+test("parses targeted edit blocks and SEARCH/REPLACE hunks", () => {
+  const markdown = "Here is the fix:\n\n```edit index.html\n<<<<<<< SEARCH\n<title>Old</title>\n=======\n<title>New</title>\n>>>>>>>\n<<<<<<< SEARCH\n<p>One</p>\n=======\n<p>Two</p>\n>>>>>>>\n```";
+  const edits = code.parseEdits(markdown);
+  assert.equal(edits.length, 1);
+  assert.equal(edits[0].path, "index.html");
+  assert.equal(edits[0].hunks.length, 2);
+  assert.equal(edits[0].hunks[0].search, "<title>Old</title>");
+  assert.equal(edits[0].hunks[0].replace, "<title>New</title>");
+  assert.equal(edits[0].hunks[1].search, "<p>One</p>");
+  assert.equal(edits[0].hunks[1].replace, "<p>Two</p>");
+});
+
+test("applies targeted hunks with exact and whitespace-tolerant matching", () => {
+  const original = "<!doctype html>\n<html>\n  <head>\n    <title>Old</title>\n  </head>\n  <body>\n    <p>One</p>\n  </body>\n</html>";
+  const hunks = [
+    { search: "    <title>Old</title>", replace: "    <title>Updated Title</title>" },
+    { search: "    <p>One</p>", replace: "    <p>Updated Paragraph</p>" }
+  ];
+  const result = code.applyHunks(original, hunks);
+  assert.equal(result.success, true);
+  assert.equal(result.appliedCount, 2);
+  assert.ok(result.content.includes("<title>Updated Title</title>"));
+  assert.ok(result.content.includes("<p>Updated Paragraph</p>"));
+});
+
+test("applies targeted edits to workspace and records updated revision", () => {
+  let ws = code.mergeFiles(code.empty(), [{ path: "app.js", language: "javascript", content: "const a = 1;\nconst b = 2;\n" }], "Init", clock);
+  const patchMarkdown = "```edit app.js\n<<<<<<< SEARCH\nconst b = 2;\n=======\nconst b = 42;\n>>>>>>>\n```";
+  ws = code.applyTargetedEdits(ws, patchMarkdown, "", () => clock() + 100);
+  assert.equal(ws.files[0].content, "const a = 1;\nconst b = 42;\n");
+  assert.equal(ws.revisions.length, 2);
+  assert.match(ws.revisions[1].note, /Updated app\.js/);
+});

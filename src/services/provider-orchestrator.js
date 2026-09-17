@@ -156,7 +156,7 @@
           };
         }
         if (result.text) {
-          return { ...result, text: closeOpenCodeFences(result.text), searchSources: options.searchSources || [] };
+          return { ...result, text: closeOpenCodeFences(result.text), searchSources: options.searchSources || [], searchMeta: options.searchMeta || null };
         }
       } catch (error) {
         if (error?.name === "AbortError" || shouldSearch) throw error;
@@ -180,12 +180,21 @@
     });
     if (!response.ok) throw new Error(await readResponseError(response));
     const result = await consumeResponse(response, config.format, onUpdate);
-    if (!result.text) throw new Error("The selected model returned an empty response.");
+    if (!result.text) {
+      // Empty turn with no provider error event: surface the provider's
+      // stop reason (e.g. content_filter) before a bare generic message.
+      const reason = String(result.stopReason || "").trim();
+      throw new Error(
+        reason
+          ? `The selected model returned an empty response (stop reason: ${reason}).`
+          : "The selected model returned an empty response."
+      );
+    }
     const completed = await continueUntilComplete({
       fetch, config, messages, userIndex, basePrompt, taskGuidance, requests,
       consumeResponse, readResponseError, onUpdate, signal, result
     });
-    return { ...completed, searchSources: options.searchSources || [] };
+    return { ...completed, searchSources: options.searchSources || [], searchMeta: options.searchMeta || null };
   }
 
   globalThis.VelaProviderOrchestrator = Object.freeze({

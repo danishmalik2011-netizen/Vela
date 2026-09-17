@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const DEFAULT_LIMITS = Object.freeze({ maxFiles: 10, maxFileBytes: 10 * 1024 * 1024, maxTotalBytes: 25 * 1024 * 1024 });
+  const DEFAULT_LIMITS = Object.freeze({ maxFiles: 10, maxFileBytes: 50 * 1024 * 1024, maxTotalBytes: 100 * 1024 * 1024 });
   const MODE_COMMANDS = Object.freeze([
     Object.freeze({ command: "/chat", mode: "chat", label: "Chat", description: "Ask, discuss, and reason together" }),
     Object.freeze({ command: "/write", mode: "write", label: "Write", description: "Draft, edit, and refine writing" }),

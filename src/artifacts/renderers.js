@@ -50,6 +50,18 @@
       editable: true,
       export: ["mmd", "svg", "png"],
       security: Object.freeze({ sanitizer: "mermaid-strict" })
+    }),
+    pdf: Object.freeze({
+      preview: "pdf",
+      editable: true,
+      export: ["pdf"],
+      security: Object.freeze({ execution: false })
+    }),
+    pptx: Object.freeze({
+      preview: "pptx",
+      editable: true,
+      export: ["pptx"],
+      security: Object.freeze({ execution: false })
     })
   });
 
@@ -63,7 +75,7 @@
   }
 
   function canPreview(language) {
-    return ["iframe", "sanitized-svg", "markdown", "table", "json", "diagram"].includes(get(language).preview);
+    return ["iframe", "sanitized-svg", "markdown", "table", "json", "diagram", "pdf", "pptx"].includes(get(language).preview);
   }
 
   // RFC-4180-style delimiter-separated parsing with quoted-field support.
@@ -222,6 +234,30 @@
       figure.className = "mermaid artifact-mermaid";
       figure.textContent = String(source || "");
       wrap.appendChild(figure);
+      return wrap;
+    }
+
+    if (renderer.preview === "pdf") {
+      if (globalThis.VelaPdf?.createPreview) {
+        return globalThis.VelaPdf.createPreview(document, source, options);
+      }
+      const wrap = document.createElement("div");
+      wrap.className = "artifact-preview-surface artifact-pdf-viewer";
+      const pre = document.createElement("pre");
+      pre.textContent = String(source || "");
+      wrap.appendChild(pre);
+      return wrap;
+    }
+
+    if (renderer.preview === "pptx") {
+      if (globalThis.VelaPptx?.createPreview) {
+        return globalThis.VelaPptx.createPreview(document, source, options);
+      }
+      const wrap = document.createElement("div");
+      wrap.className = "artifact-preview-surface artifact-pptx-player";
+      const pre = document.createElement("pre");
+      pre.textContent = String(source || "");
+      wrap.appendChild(pre);
       return wrap;
     }
 

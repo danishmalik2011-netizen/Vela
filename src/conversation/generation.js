@@ -2,15 +2,15 @@
   "use strict";
 
   function createSnapshot(messages, options = {}) {
-    return (Array.isArray(messages) ? messages : []).map((entry) => ({
-      role: entry.role,
-      content: entry.content,
-      reasoning: typeof entry.reasoning === "string" ? entry.reasoning : "",
-      attachments: Array.isArray(entry.attachments) ? entry.attachments : [],
-      searchEnabled: Boolean(entry.searchEnabled),
-      sources: Array.isArray(entry.sources) ? entry.sources : [],
-      timestamp: Number(entry.timestamp) || 0,
-      ...("taskMode" in options ? {} : { taskMode: String(entry.taskMode || "") }),
+    return (Array.isArray(messages) ? messages : []).filter(Boolean).map((entry) => ({
+      role: entry?.role || "user",
+      content: entry?.content || "",
+      reasoning: typeof entry?.reasoning === "string" ? entry.reasoning : "",
+      attachments: Array.isArray(entry?.attachments) ? entry.attachments : [],
+      searchEnabled: Boolean(entry?.searchEnabled),
+      sources: Array.isArray(entry?.sources) ? entry.sources : [],
+      timestamp: Number(entry?.timestamp) || 0,
+      ...("taskMode" in options ? {} : { taskMode: String(entry?.taskMode || "") }),
       ...(options.preserialize ? options.preserialize(entry) : {})
     }));
   }

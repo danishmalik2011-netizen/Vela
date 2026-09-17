@@ -6,3 +6,5 @@ node_modules/
 .chrome-test-profile/
 .DS_Store
 .env
+.claude/
+mockup-*.html

@@ -3,6 +3,38 @@
 
   const CURRENT_VERSION = 8;
   const TASK_MODES = Object.freeze(["chat", "write", "research", "code", "build"]);
+  const MAX_PERSISTED_ATTACHMENT_TEXT = 200_000;
+
+  function compactAttachment(attachment = {}) {
+    const text = String(attachment.text || "");
+    return {
+      id: attachment.id,
+      name: attachment.name,
+      type: attachment.type,
+      size: attachment.size,
+      kind: attachment.kind,
+      // Data URLs can exhaust localStorage after only a few images. The image
+      // is available for the active turn but is not duplicated into history.
+      dataUrl: "",
+      text: text.length > MAX_PERSISTED_ATTACHMENT_TEXT
+        ? `${text.slice(0, MAX_PERSISTED_ATTACHMENT_TEXT)}\n\n[Attachment truncated for local storage]`
+        : text
+    };
+  }
+
+  function withoutAttachmentPayloads(record) {
+    return {
+      ...record,
+      messages: (Array.isArray(record?.messages) ? record.messages : []).map((message) => ({
+        ...message,
+        attachments: (Array.isArray(message?.attachments) ? message.attachments : []).map((attachment) => ({
+          ...(attachment || {}),
+          dataUrl: "",
+          text: ""
+        }))
+      }))
+    };
+  }
 
   function safeParse(value, fallback) {
     try {
@@ -46,7 +78,7 @@
       codeWorkspace: codeStore?.normalize(state.codeWorkspace) || state.codeWorkspace || null,
       artifacts: Array.isArray(state.artifacts) ? state.artifacts : [],
       taskMode: TASK_MODES.includes(state.taskMode) ? state.taskMode : "chat",
-      messages: (Array.isArray(state.messages) ? state.messages : []).map((message) => ({
+      messages: (Array.isArray(state?.messages) ? state.messages : []).filter(Boolean).map((message) => ({
         role: message.role,
         content: String(message.content || ""),
         reasoning: String(message.reasoning || ""),
@@ -54,15 +86,7 @@
         sources: Array.isArray(message.sources) ? message.sources : [],
         searchEnabled: Boolean(message.searchEnabled),
         taskMode: TASK_MODES.includes(message.taskMode) ? message.taskMode : "chat",
-        attachments: (Array.isArray(message.attachments) ? message.attachments : []).map((attachment) => ({
-          id: attachment.id,
-          name: attachment.name,
-          type: attachment.type,
-          size: attachment.size,
-          kind: attachment.kind,
-          dataUrl: attachment.kind === "image" ? attachment.dataUrl || "" : "",
-          text: attachment.text || ""
-        }))
+        attachments: (Array.isArray(message?.attachments) ? message.attachments : []).map(compactAttachment)
       })),
       pending: state.pending || null,
       pinned: Boolean(state.pinned),
@@ -84,7 +108,7 @@
       codeWorkspace: codeStore?.normalize(saved.codeWorkspace) || saved.codeWorkspace || null,
       artifacts: artifactStore?.migrate(saved.artifacts, clock) || [],
       taskMode: TASK_MODES.includes(saved.taskMode) ? saved.taskMode : "chat",
-      messages: saved.messages
+      messages: (Array.isArray(saved.messages) ? saved.messages : [])
         .filter((message) => message && ["user", "assistant"].includes(message.role) && typeof message.content === "string")
         .map((message) => ({
           role: message.role,
@@ -94,7 +118,7 @@
           sources: Array.isArray(message.sources) ? message.sources : [],
           searchEnabled: Boolean(message.searchEnabled),
           taskMode: TASK_MODES.includes(message.taskMode) ? message.taskMode : "chat",
-          attachments: Array.isArray(message.attachments) ? message.attachments : []
+          attachments: (Array.isArray(message.attachments) ? message.attachments : []).map(compactAttachment)
         })),
       pending: saved.pending && typeof saved.pending.message === "string" ? saved.pending : null,
       pinned: Boolean(saved.pinned),
@@ -104,11 +128,41 @@
     };
   }
 
+  function isQuotaError(error) {
+    return error?.name === "QuotaExceededError" || error?.code === 22 || error?.code === 1014;
+  }
+
+  function writeRecord(storage, key, record) {
+    try {
+      storage.setItem(key, JSON.stringify(record));
+      return { record, persisted: true, compacted: false };
+    } catch (error) {
+      if (!isQuotaError(error)) throw error;
+      const compacted = withoutAttachmentPayloads(record);
+      try {
+        storage.setItem(key, JSON.stringify(compacted));
+        return { record: compacted, persisted: true, compacted: true };
+      } catch (retryError) {
+        if (!isQuotaError(retryError)) throw retryError;
+        return { record: compacted, persisted: false, compacted: true };
+      }
+    }
+  }
+
   function save(storage, keys, state, clock = Date.now) {
-    const record = serialize(state, clock);
-    storage.setItem(storageKey(keys.prefix, record.id), JSON.stringify(record));
-    if (keys.compatibility) storage.setItem(keys.compatibility, JSON.stringify(record));
-    if (keys.active) storage.setItem(keys.active, record.id);
+    let record = serialize(state, clock);
+    const primaryKey = storageKey(keys.prefix, record.id);
+    // Remove obsolete full-size mirrors before writing, so an existing mirror
+    // cannot prevent its authoritative conversation from being updated.
+    if (keys.compatibility) storage.removeItem(keys.compatibility);
+    if (keys.legacy) storage.removeItem(keys.legacy);
+    const result = writeRecord(storage, primaryKey, record);
+    record = result.record;
+    try {
+      if (keys.active) storage.setItem(keys.active, record.id);
+    } catch (error) {
+      if (!isQuotaError(error)) throw error;
+    }
     return record;
   }
 
@@ -125,15 +179,15 @@
 
   function indexEntry(state) {
     return {
-      id: state.id,
-      title: state.title,
-      projectId: state.projectId || "",
-      createdAt: state.createdAt,
-      updatedAt: state.updatedAt,
-      messageCount: Array.isArray(state.messages) ? state.messages.length : 0,
-      artifactCount: Array.isArray(state.artifacts) ? state.artifacts.length : 0,
-      pinned: Boolean(state.pinned),
-      archived: Boolean(state.archived)
+      id: state?.id || "",
+      title: state?.title || "New conversation",
+      projectId: state?.projectId || "",
+      createdAt: state?.createdAt || 0,
+      updatedAt: state?.updatedAt || 0,
+      messageCount: Array.isArray(state?.messages) ? state.messages.length : 0,
+      artifactCount: Array.isArray(state?.artifacts) ? state.artifacts.length : 0,
+      pinned: Boolean(state?.pinned),
+      archived: Boolean(state?.archived)
     };
   }
 
@@ -179,6 +233,10 @@
     readIndex,
     writeIndex,
     serialize,
+    compactAttachment,
+    withoutAttachmentPayloads,
+    isQuotaError,
+    writeRecord,
     migrate,
     save,
     load,

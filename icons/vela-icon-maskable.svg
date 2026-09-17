@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="VELA emblem maskable">
+  <defs>
+    <linearGradient id="frame" x1="8" y1="5" x2="55" y2="59" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2c795d"/>
+      <stop offset=".52" stop-color="#064e3b"/>
+      <stop offset="1" stop-color="#032b20"/>
+    </linearGradient>
+    <linearGradient id="face" x1="18" y1="14" x2="42" y2="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff"/>
+      <stop offset="1" stop-color="#dcebe3"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(-3.31 -3.31) scale(1.1034)">
+    <rect x="0" y="0" width="64" height="64" rx="12" fill="url(#frame)"/>
+    <path d="M14 15h12.4L32 42.8 37.6 15H50L40 50H24L14 15Z" fill="url(#face)"/>
+    <path d="M32 42.8 37.6 15H50L40 50h-8V42.8Z" fill="#032b20" opacity=".62"/>
+    <path d="M6.5 20V17A10.5 10.5 0 0 1 17 6.5h21" fill="none" stroke="#fff" stroke-opacity=".38" stroke-width="2" stroke-linecap="round"/>
+    <rect x="45" y="44" width="7" height="7" rx="1" fill="#34d399"/>
+  </g>
+</svg>

@@ -27,6 +27,7 @@
       canvas.classList.remove("open", "fullscreen");
       canvas.setAttribute("aria-hidden", "true");
       app.classList.remove("canvas-engaged", "canvas-fullscreen");
+      app.style.removeProperty("--artifact-canvas-space");
       state = updateState({ open: false, fullscreen: false });
       return { closed: true, reason: "", state: { ...state } };
     }

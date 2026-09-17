@@ -29,7 +29,7 @@
     const entries = (Array.isArray(files) ? files : [])
       .map((file) => ({
         name: String(file?.path || "file.txt").replace(/\\/g, "/").replace(/^\/+/, "").slice(0, 512),
-        data: encoder.encode(String(file?.content ?? ""))
+        data: file?.data instanceof Uint8Array ? file.data : encoder.encode(String(file?.content ?? ""))
       }))
       .filter((file) => file.name && !file.name.includes(".."));
 

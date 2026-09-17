@@ -28,13 +28,22 @@
     const profileKey = saved.profileId ? `vela-provider-key:${saved.profileId}` : "";
     const profileSecret = profileKey ? sessionStorage?.getItem(profileKey) || "" : "";
     const switchEnabled = document?.getElementById(FORM_IDS.enabled)?.getAttribute("aria-checked") === "true";
+    const apiKey = profileSecret || value(document, FORM_IDS.apiKey) || sessionStorage?.getItem("sage-byok-key") || saved.apiKey || (typeof localStorage !== "undefined" ? localStorage.getItem("vela-voice-api-key") : "") || "";
+    const model = value(document, FORM_IDS.model) || saved.model || "";
+    const endpoint = value(document, FORM_IDS.endpoint) || String(saved.endpoint || "").trim();
+    const provider = value(document, FORM_IDS.provider) || saved.provider || "custom";
+
+    const isExplicitlyEnabled = switchEnabled || saved.enabled === true;
+    const hasCredentials = Boolean(apiKey && (model || endpoint));
+    const enabled = isExplicitlyEnabled || hasCredentials;
+
     return {
-      enabled: switchEnabled || saved.enabled === true,
-      provider: value(document, FORM_IDS.provider) || saved.provider || "custom",
+      enabled,
+      provider,
       format: value(document, FORM_IDS.format) || saved.format || "openai-chat",
-      endpoint: value(document, FORM_IDS.endpoint) || String(saved.endpoint || "").trim(),
-      model: value(document, FORM_IDS.model) || saved.model || "",
-      apiKey: profileSecret || value(document, FORM_IDS.apiKey) || sessionStorage?.getItem("sage-byok-key") || "",
+      endpoint,
+      model,
+      apiKey,
       profileId: String(saved.profileId || "")
     };
   }

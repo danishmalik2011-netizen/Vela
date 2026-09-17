@@ -78,3 +78,68 @@ test("provider orchestrator supports local endpoint and fallback recovery", asyn
   assert.equal(result.text, "Recovered");
   assert.equal(updates, 1);
 });
+
+test("provider orchestrator reports the provider stop reason on empty turns", async () => {
+  await assert.rejects(
+    () => orchestrator.request({
+      fetch: async () => ({ ok: true }),
+      config: { enabled: true, provider: "custom", format: "openai-chat", endpoint: "https://api.example/v1", model: "m", apiKey: "k" },
+      message: "Hello", messages: [{ role: "user", content: "Hello" }], userIndex: 0,
+      conversation: "Test", shouldSearch: false, searchContext: "", searchError: "", preferences: {}, taskMode: "chat", taskGuidance: "",
+      requests, consumeResponse: async () => ({ text: "", reasoning: "", stopReason: "content_filter" }),
+      readResponseError: async () => "err", onUpdate: () => {}
+    }),
+    /stop reason: content_filter/
+  );
+
+  await assert.rejects(
+    () => orchestrator.request({
+      fetch: async () => ({ ok: true }),
+      config: { enabled: true, provider: "custom", format: "openai-chat", endpoint: "https://api.example/v1", model: "m", apiKey: "k" },
+      message: "Hello", messages: [{ role: "user", content: "Hello" }], userIndex: 0,
+      conversation: "Test", shouldSearch: false, searchContext: "", searchError: "", preferences: {}, taskMode: "chat", taskGuidance: "",
+      requests, consumeResponse: async () => ({ text: "", reasoning: "", stopReason: "" }),
+      readResponseError: async () => "err", onUpdate: () => {}
+    }),
+    /returned an empty response\.$/
+  );
+});
+
+test("contentFor suppresses image parts when document text is present to prevent vision decode failures", () => {
+  const entryWithTextAndImages = {
+    content: "Review this DPP",
+    attachments: [
+      {
+        name: "Zoology_DPP.pdf",
+        text: "Question 1: What is calcitonin?",
+        images: ["data:image/jpeg;base64,/9j/4AAQSkZJRg=="]
+      }
+    ]
+  };
+
+  const payload = requests.contentFor(entryWithTextAndImages, "openai-chat");
+  assert.equal(typeof payload, "string", "Must return plain string prompt when text is present, omitting image_url");
+  assert.ok(payload.includes("Review this DPP"));
+  assert.ok(payload.includes("<attachment name=\"Zoology_DPP.pdf\">"));
+  assert.ok(payload.includes("Question 1: What is calcitonin?"));
+});
+
+test("contentFor includes image parts only when attachment has no text (scanned PDF or direct image)", () => {
+  const scannedPdfEntry = {
+    content: "Review this scan",
+    attachments: [
+      {
+        name: "scan.pdf",
+        text: "",
+        images: ["data:image/jpeg;base64,/9j/4AAQSkZJRg=="]
+      }
+    ]
+  };
+
+  const payload = requests.contentFor(scannedPdfEntry, "openai-chat");
+  assert.ok(Array.isArray(payload), "Must return content array with image_url for scanned document without text");
+  assert.equal(payload[0].type, "text");
+  assert.equal(payload[1].type, "image_url");
+  assert.equal(payload[1].image_url.url, "data:image/jpeg;base64,/9j/4AAQSkZJRg==");
+});
+
