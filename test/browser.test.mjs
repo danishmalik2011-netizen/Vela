@@ -2048,5 +2048,61 @@ Executive summary of frontier releases.\`;
   assert.equal(result.bodyContainsExecutiveSummary, true, "Executive summary body text must be preserved");
 });
 
+test("mobile executive UX enforces 16px inputs, accessible touch targets, visible model pill, and responsive drawers", async () => {
+  await command("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
 
+  const result = await evaluate(`(() => {
+    const metaViewport = document.querySelector('meta[name="viewport"]')?.getAttribute('content') || '';
+    const composerInput = document.getElementById('composerInput');
+    const composerStyle = window.getComputedStyle(composerInput);
+    const modelPicker = document.querySelector('.model-picker-wrap');
+    const modelPickerStyle = window.getComputedStyle(modelPicker);
+    const topbarCode = document.getElementById('topbarCodeWorkspace');
+    const topbarCodeStyle = window.getComputedStyle(topbarCode);
+    const menuBtn = document.getElementById('mobileMenuButton');
+    const menuBtnRect = menuBtn?.getBoundingClientRect();
+    const sendBtn = document.getElementById('sendButton');
+    const sendBtnRect = sendBtn?.getBoundingClientRect();
+    const sidebarCode = document.getElementById('sidebarCodeWorkspace');
 
+    // Test mobile drawer interaction
+    menuBtn?.click();
+    const isDrawerOpen = document.getElementById('app')?.classList.contains('mobile-sidebar-open');
+
+    // Click sidebar workspace item
+    sidebarCode?.click();
+    const isCanvasOpenAfterClick = document.getElementById('artifactCanvas')?.classList.contains('open');
+    const isDrawerClosedAfterClick = !document.getElementById('app')?.classList.contains('mobile-sidebar-open');
+
+    // Close canvas
+    document.getElementById('closeArtifactCanvas')?.click();
+
+    return {
+      viewportHasCover: metaViewport.includes('viewport-fit=cover'),
+      viewportHasInteractive: metaViewport.includes('interactive-widget=resizes-content'),
+      composerFontSize: composerStyle.fontSize,
+      modelPickerVisible: modelPickerStyle.display !== 'none' && modelPicker.offsetWidth > 0,
+      topbarCodeHidden: topbarCodeStyle.display === 'none',
+      menuBtnSize: Math.round(Math.min(menuBtnRect?.width || 0, menuBtnRect?.height || 0)),
+      sendBtnSize: Math.round(Math.min(sendBtnRect?.width || 0, sendBtnRect?.height || 0)),
+      isDrawerOpen,
+      isCanvasOpenAfterClick,
+      isDrawerClosedAfterClick,
+      noHorizontalOverflow: document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1
+    };
+  })()`);
+
+  assert.equal(result.viewportHasCover, true, "Viewport must declare viewport-fit=cover for safe-area insets");
+  assert.equal(result.viewportHasInteractive, true, "Viewport must declare interactive-widget=resizes-content");
+  assert.equal(result.composerFontSize, "16px", "Composer input font-size must be at least 16px to prevent iOS auto-zoom");
+  assert.equal(result.modelPickerVisible, true, "Model picker must remain visible and accessible on mobile");
+  assert.equal(result.topbarCodeHidden, true, "Desktop workspace buttons must be hidden from mobile topbar to avoid crowding");
+  assert.ok(result.menuBtnSize >= 38, "Mobile menu button touch target must be at least 38px");
+  assert.ok(result.sendBtnSize >= 38, "Send button touch target must be at least 38px");
+  assert.equal(result.isDrawerOpen, true, "Mobile menu button must open navigation drawer");
+  assert.equal(result.isCanvasOpenAfterClick, true, "Tapping workspace in mobile drawer must open canvas");
+  assert.equal(result.isDrawerClosedAfterClick, true, "Opening workspace must close mobile navigation drawer");
+  assert.equal(result.noHorizontalOverflow, true, "No horizontal page overflow on mobile viewport");
+
+  await command("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
+});
