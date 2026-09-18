@@ -39,6 +39,22 @@ test("provider configuration reads form, persisted metadata, and session-only se
   assert.equal(config.profileId, "p1");
 });
 
+test("provider configuration persists API keys in localStorage across app restarts", () => {
+  const localStorage = storage({
+    "sage-byok-config": JSON.stringify({ enabled: true, provider: "groq", format: "openai-chat", endpoint: "https://api.groq.com/openai/v1", model: "llama-3.3-70b-versatile", profileId: "prof-persistent" }),
+    "vela-provider-key:prof-persistent": "gsk_persisted_secret_key_123"
+  });
+  const emptySessionStorage = storage({});
+  const config = configService.read({
+    document: documentWith({}),
+    localStorage,
+    sessionStorage: emptySessionStorage
+  });
+  assert.equal(config.enabled, true);
+  assert.equal(config.apiKey, "gsk_persisted_secret_key_123");
+  assert.equal(config.model, "llama-3.3-70b-versatile");
+});
+
 test("provider configuration repairs corrupt saved metadata", () => {
   assert.equal(Object.keys(configService.parseSaved(storage({ "sage-byok-config": "{" }))).length, 0);
 });

@@ -26,9 +26,19 @@
   function read({ document, localStorage, sessionStorage, key = "sage-byok-config" }) {
     const saved = parseSaved(localStorage, key);
     const profileKey = saved.profileId ? `vela-provider-key:${saved.profileId}` : "";
-    const profileSecret = profileKey ? sessionStorage?.getItem(profileKey) || "" : "";
+    const profileSecret = profileKey
+      ? (localStorage?.getItem(profileKey) || sessionStorage?.getItem(profileKey) || "")
+      : "";
     const switchEnabled = document?.getElementById(FORM_IDS.enabled)?.getAttribute("aria-checked") === "true";
-    const apiKey = profileSecret || value(document, FORM_IDS.apiKey) || sessionStorage?.getItem("sage-byok-key") || saved.apiKey || (typeof localStorage !== "undefined" ? localStorage.getItem("vela-voice-api-key") : "") || "";
+    const apiKey =
+      profileSecret ||
+      value(document, FORM_IDS.apiKey) ||
+      (saved.profileId ? localStorage?.getItem(`vela-provider-key:${saved.profileId}`) : "") ||
+      localStorage?.getItem("sage-byok-key") ||
+      sessionStorage?.getItem("sage-byok-key") ||
+      saved.apiKey ||
+      (typeof localStorage !== "undefined" ? localStorage.getItem("vela-voice-api-key") : "") ||
+      "";
     const model = value(document, FORM_IDS.model) || saved.model || "";
     const endpoint = value(document, FORM_IDS.endpoint) || String(saved.endpoint || "").trim();
     const provider = value(document, FORM_IDS.provider) || saved.provider || "custom";

@@ -868,18 +868,24 @@
 
     .conversation-menu {
       position: fixed;
-      z-index: 120;
-      width: 206px;
+      z-index: 100070;
+      width: 216px;
+      max-height: min(360px, 75dvh);
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
       padding: 6px;
       visibility: hidden;
       opacity: 0;
       transform: translateY(-4px) scale(0.98);
       transform-origin: top left;
       border: 1px solid var(--border-strong);
-      border-radius: 12px;
+      border-radius: 14px;
       background: var(--surface);
       box-shadow: var(--shadow-panel);
       transition: opacity 120ms ease, transform 120ms ease, visibility 120ms ease;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-strong) transparent;
+      box-sizing: border-box;
     }
 
     .conversation-menu.open {
@@ -1247,12 +1253,16 @@
       white-space: nowrap;
     }
 
+    .topbar.model-menu-open {
+      z-index: 100050 !important;
+    }
+
     .model-menu {
       position: absolute;
-      z-index: 65;
+      z-index: 100060;
       top: 43px;
       left: 50%;
-      width: min(390px, calc(100vw - 28px));
+      width: min(390px, calc(100vw - 24px));
       padding: 7px;
       visibility: hidden;
       opacity: 0;
@@ -1265,6 +1275,11 @@
         opacity 150ms ease,
         visibility 150ms ease,
         transform 170ms ease;
+      display: flex;
+      flex-direction: column;
+      max-height: min(440px, calc(100dvh - 70px));
+      overflow: hidden;
+      box-sizing: border-box;
     }
 
     .model-menu.open {
@@ -1312,10 +1327,13 @@
     }
 
     .model-options {
-      max-height: min(360px, 52vh);
+      flex: 1 1 auto;
+      min-height: 0;
+      max-height: min(360px, calc(100dvh - 150px));
       overflow-y: auto;
       scrollbar-width: thin;
       scrollbar-color: var(--border-strong) transparent;
+      -webkit-overflow-scrolling: touch;
     }
 
     .model-option {
@@ -7520,17 +7538,36 @@
       .model-menu {
         position: fixed;
         top: calc(var(--header-height) + env(safe-area-inset-top, 0px) + 6px);
-        left: 12px;
-        right: 12px;
+        left: 10px;
+        right: 10px;
         width: auto;
-        max-width: calc(100vw - 24px);
-        max-height: min(420px, calc(100dvh - var(--header-height) - 40px));
+        max-width: calc(100vw - 20px);
+        max-height: min(440px, calc(100dvh - var(--header-height) - 24px));
         transform: translateY(-6px);
         border-radius: 16px;
+        z-index: 100060;
       }
 
       .model-menu.open {
         transform: translateY(0);
+      }
+
+      .conversation-menu {
+        position: fixed !important;
+        left: 12px !important;
+        right: 12px !important;
+        width: auto !important;
+        max-width: calc(100vw - 24px) !important;
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 14px) !important;
+        top: auto !important;
+        max-height: min(380px, 72dvh) !important;
+        border-radius: 18px !important;
+        box-shadow: 0 -4px 34px rgba(0, 0, 0, 0.28) !important;
+        transform: translateY(12px) scale(0.98) !important;
+      }
+
+      .conversation-menu.open {
+        transform: translateY(0) scale(1) !important;
       }
 
       .topbar-actions {
@@ -9939,6 +9976,41 @@
       document.getElementById("deleteProviderProfile").disabled = !providerProfile.value;
     }
 
+    function readStoredApiKey(profileId = "") {
+      let key = "";
+      try {
+        if (profileId) {
+          key = localStorage.getItem(`vela-provider-key:${profileId}`) || sessionStorage.getItem(`vela-provider-key:${profileId}`) || "";
+        }
+        if (!key) {
+          key = localStorage.getItem("sage-byok-key") || sessionStorage.getItem("sage-byok-key") || localStorage.getItem("vela-voice-api-key") || "";
+        }
+      } catch {}
+      return key;
+    }
+
+    function persistApiKey(key, profileId = "") {
+      const trimmed = String(key || "").trim();
+      if (!trimmed) return;
+      try {
+        localStorage.setItem("sage-byok-key", trimmed);
+        sessionStorage.setItem("sage-byok-key", trimmed);
+        if (profileId) {
+          localStorage.setItem(`vela-provider-key:${profileId}`, trimmed);
+          sessionStorage.setItem(`vela-provider-key:${profileId}`, trimmed);
+        }
+      } catch {}
+    }
+
+    function removeStoredApiKey(profileId = "") {
+      try {
+        if (profileId) {
+          localStorage.removeItem(`vela-provider-key:${profileId}`);
+          sessionStorage.removeItem(`vela-provider-key:${profileId}`);
+        }
+      } catch {}
+    }
+
     function loadProviderProfile(profileId) {
       const profile = readProviderProfiles().find((item) => item.id === profileId);
       if (!profile) return false;
@@ -9946,7 +10018,7 @@
       providerSelect.value = profile.provider || "custom";
       providerFormat.value = profile.format || "openai-chat";
       providerEndpoint.value = profile.endpoint || "";
-      providerApiKey.value = sessionStorage.getItem(`vela-provider-key:${profile.id}`) || "";
+      providerApiKey.value = readStoredApiKey(profile.id);
       syncProviderControls();
       activateCurrentProviderCatalog(profile.model || "");
       localStorage.setItem(ACTIVE_PROVIDER_PROFILE_KEY, profile.id);
@@ -10694,11 +10766,38 @@
       renderTopbarModels();
     }
 
+    function positionModelMenu() {
+      if (!topbarModelMenu || !topbarModelPicker) return;
+      const isMobile = window.innerWidth <= 640;
+      if (isMobile) {
+        topbarModelMenu.style.position = "fixed";
+        topbarModelMenu.style.top = "calc(var(--header-height) + env(safe-area-inset-top, 0px) + 6px)";
+        topbarModelMenu.style.left = "10px";
+        topbarModelMenu.style.right = "10px";
+        topbarModelMenu.style.width = "auto";
+        topbarModelMenu.style.maxWidth = "calc(100vw - 20px)";
+        topbarModelMenu.style.transform = "none";
+      } else {
+        const pickerRect = topbarModelPicker.getBoundingClientRect();
+        const menuWidth = Math.min(390, window.innerWidth - 24);
+        const preferredLeft = pickerRect.left + (pickerRect.width / 2) - (menuWidth / 2);
+        const clampedLeft = Math.max(12, Math.min(preferredLeft, window.innerWidth - menuWidth - 12));
+        topbarModelMenu.style.position = "fixed";
+        topbarModelMenu.style.top = `${pickerRect.bottom + 6}px`;
+        topbarModelMenu.style.left = `${clampedLeft}px`;
+        topbarModelMenu.style.right = "auto";
+        topbarModelMenu.style.width = `${menuWidth}px`;
+        topbarModelMenu.style.maxWidth = "calc(100vw - 24px)";
+        topbarModelMenu.style.transform = "none";
+      }
+    }
+
     function closeTopbarModelMenu() {
       if (!topbarModelMenu || !topbarModelPicker || !topbarModelSearch) return;
 
       topbarModelMenu.classList.remove("open");
       topbarModelPicker.setAttribute("aria-expanded", "false");
+      document.querySelector(".topbar")?.classList.remove("model-menu-open");
       topbarModelSearch.value = "";
       renderTopbarModels();
     }
@@ -10709,10 +10808,14 @@
         const willOpen = !topbarModelMenu.classList.contains("open");
         topbarModelMenu.classList.toggle("open", willOpen);
         topbarModelPicker.setAttribute("aria-expanded", String(willOpen));
+        document.querySelector(".topbar")?.classList.toggle("model-menu-open", willOpen);
 
         if (willOpen) {
+          positionModelMenu();
           renderTopbarModels();
-          setTimeout(() => topbarModelSearch.focus(), 60);
+          if (!window.matchMedia("(pointer: coarse)").matches && window.innerWidth > 640) {
+            setTimeout(() => topbarModelSearch.focus(), 60);
+          }
         }
       });
 
@@ -10751,6 +10854,12 @@
           if (firstMatch) firstMatch.click();
         }
       });
+
+      window.addEventListener("resize", () => {
+        if (topbarModelMenu?.classList.contains("open")) {
+          positionModelMenu();
+        }
+      }, { passive: true });
     }
 
     document.addEventListener("click", (event) => {
@@ -10807,11 +10916,10 @@
         endpoint: config.endpoint,
         model: config.model
       }));
-      sessionStorage.setItem(`vela-provider-key:${profileId}`, config.apiKey);
-      sessionStorage.setItem("sage-byok-key", config.apiKey);
+      persistApiKey(config.apiKey, profileId);
       renderProviderProfiles(profileId);
       providerProfileName.value = defaultName;
-      setProviderStatus("Provider profile saved for this session", "ready");
+      setProviderStatus("AI provider profile saved", "ready");
 
       if (!options.quiet) showToast("AI provider profile saved");
       return true;
@@ -10874,9 +10982,7 @@
         : "custom";
       providerFormat.value = config.format || "openai-chat";
       providerEndpoint.value = config.endpoint || "";
-      providerApiKey.value = activeProfileId
-        ? sessionStorage.getItem(`vela-provider-key:${activeProfileId}`) || sessionStorage.getItem("sage-byok-key") || ""
-        : sessionStorage.getItem("sage-byok-key") || "";
+      providerApiKey.value = readStoredApiKey(activeProfileId);
 
       syncProviderControls();
       activateCurrentProviderCatalog(config.model || "");
@@ -10884,7 +10990,7 @@
       if (saved?.enabled && providerApiKey.value && config.model) {
         setProviderStatus("Provider profile ready", "ready");
       } else if (saved?.enabled && !providerApiKey.value) {
-        setProviderStatus("API key required for this session", "error");
+        setProviderStatus("API key required", "error");
       } else if (saved?.enabled) {
         setProviderStatus("Fetch models to continue", "idle");
       } else {
@@ -10941,7 +11047,7 @@
       const profile = readProviderProfiles().find((item) => item.id === profileId);
       if (!window.confirm(`Delete provider profile “${profile?.name || "Untitled provider"}”?`)) return;
       writeProviderProfiles(readProviderProfiles().filter((item) => item.id !== profileId));
-      sessionStorage.removeItem(`vela-provider-key:${profileId}`);
+      removeStoredApiKey(profileId);
       localStorage.removeItem(ACTIVE_PROVIDER_PROFILE_KEY);
       renderProviderProfiles();
       resetProviderProfileForm();
@@ -10988,9 +11094,19 @@
       setProviderStatus("Unsaved endpoint changes", "idle");
     });
 
+    const persistActiveKey = () => {
+      const val = providerApiKey.value.trim();
+      if (val) {
+        persistApiKey(val, providerProfile.value);
+      }
+    };
+
     providerApiKey.addEventListener("input", () => {
       setProviderStatus("Unsaved changes", "idle");
+      persistActiveKey();
     });
+
+    providerApiKey.addEventListener("blur", persistActiveKey);
 
     providerModel.addEventListener("change", () => {
       updateTopbarModelLabel();
@@ -11010,6 +11126,7 @@
     document.getElementById("fetchModels").addEventListener("click", fetchProviderModels);
 
     providerApiKey.addEventListener("change", () => {
+      persistActiveKey();
       if (providerEndpoint.value.trim() && providerApiKey.value.trim()) {
         fetchProviderModels();
       }
@@ -12285,10 +12402,7 @@
           });
         }
 
-        sessionStorage.setItem("sage-byok-key", config.apiKey);
-        if (config.profileId) {
-          sessionStorage.setItem(`vela-provider-key:${config.profileId}`, config.apiKey);
-        }
+        persistApiKey(config.apiKey, config.profileId);
         setProviderStatus(
           `${discoveredModels.length} models available for ${config.provider}`,
           "ready"
@@ -13070,6 +13184,17 @@
       visibility: visible;
       opacity: 1;
       pointer-events: auto;
+    }
+
+    @media (max-width: 820px), (hover: none) {
+      .assistant-message-meta .response-actions {
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+      }
+      .user-message-actions {
+        opacity: 1 !important;
+      }
     }
 
     .markdown-body {
@@ -14009,8 +14134,7 @@
           config.apiKey ||
           (typeof providerApiKey !== "undefined" && providerApiKey?.value?.trim()) ||
           document.getElementById("providerApiKey")?.value?.trim() ||
-          sessionStorage?.getItem("sage-byok-key") ||
-          localStorage?.getItem("vela-voice-api-key") ||
+          readStoredApiKey(config.profileId) ||
           "";
         config.apiKey = activeApiKey;
 
@@ -14457,16 +14581,37 @@
         if (archiveLabel) archiveLabel.textContent = saved?.archived ? "Unarchive" : "Archive";
         conversationMenu.classList.add("open");
         conversationMenu.setAttribute("aria-hidden", "false");
-        conversationMenu.style.left = "0px";
-        conversationMenu.style.top = "0px";
 
-        const width = conversationMenu.offsetWidth || 206;
-        const height = conversationMenu.offsetHeight || 230;
-        const left = Math.max(8, Math.min(x, window.innerWidth - width - 8));
-        const top = Math.max(8, Math.min(y, window.innerHeight - height - 8));
+        const isMobile = window.innerWidth <= 640;
+        if (isMobile) {
+          conversationMenu.style.left = "12px";
+          conversationMenu.style.right = "12px";
+          conversationMenu.style.width = "auto";
+          conversationMenu.style.maxWidth = "calc(100vw - 24px)";
+          conversationMenu.style.top = "auto";
+          conversationMenu.style.bottom = "calc(env(safe-area-inset-bottom, 0px) + 14px)";
+          conversationMenu.style.maxHeight = "min(380px, 72dvh)";
+        } else {
+          conversationMenu.style.left = "0px";
+          conversationMenu.style.top = "0px";
+          conversationMenu.style.bottom = "auto";
+          conversationMenu.style.right = "auto";
 
-        conversationMenu.style.left = `${left}px`;
-        conversationMenu.style.top = `${top}px`;
+          const width = 216;
+          const height = Math.max(conversationMenu.offsetHeight || 0, 272);
+          const left = Math.max(10, Math.min(x, window.innerWidth - width - 12));
+          const roomBelow = window.innerHeight - y - 12;
+          const openAbove = roomBelow < height && y > height;
+          const top = openAbove
+            ? Math.max(10, y - height - 6)
+            : Math.max(10, Math.min(y, window.innerHeight - height - 12));
+
+          conversationMenu.style.left = `${left}px`;
+          conversationMenu.style.width = `${width}px`;
+          conversationMenu.style.top = `${top}px`;
+          conversationMenu.style.maxHeight = "min(340px, calc(100dvh - 24px))";
+        }
+
         conversationMenu.querySelector("[role='menuitem']")?.focus();
       }
 

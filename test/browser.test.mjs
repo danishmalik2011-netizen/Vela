@@ -2106,3 +2106,62 @@ test("mobile executive UX enforces 16px inputs, accessible touch targets, visibl
 
   await command("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
 });
+
+test("mobile dropdowns and options menus fit cleanly within viewport without clipping or half-hidden states", async () => {
+  await command("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
+
+  const result = await evaluate(`(() => {
+    // 1. Test model picker dropdown
+    const modelPicker = document.getElementById('topbarModelPicker');
+    modelPicker.click();
+    const modelMenu = document.getElementById('topbarModelMenu');
+    const mRect = modelMenu.getBoundingClientRect();
+    const modelFitsH = mRect.left >= 0 && mRect.right <= window.innerWidth;
+    const modelFitsV = mRect.top >= 0 && mRect.bottom <= window.innerHeight;
+    modelPicker.click(); // close
+
+    // 2. Test conversation options dropdown
+    const menuBtn = document.getElementById('mobileMenuButton');
+    menuBtn?.click();
+    const history = document.querySelector('.history');
+    let testItem = document.getElementById('test-conv-dropdown-item');
+    if (!testItem) {
+      testItem = document.createElement('div');
+      testItem.id = 'test-conv-dropdown-item';
+      testItem.className = 'chat-link';
+      testItem.dataset.conversationId = 'test-conv-menu';
+      testItem.innerHTML = '<span class="chat-link-label">Test</span><button class="chat-more" id="testConvMore">···</button>';
+      history?.appendChild(testItem);
+    }
+    const moreBtn = document.getElementById('testConvMore');
+    moreBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const convMenu = document.getElementById('conversationMenu');
+    const cRect = convMenu.getBoundingClientRect();
+    const convFitsH = cRect.left >= 0 && cRect.right <= window.innerWidth;
+    const convFitsV = cRect.top >= 0 && cRect.bottom <= window.innerHeight;
+    document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    // 3. Test API key auto-persistence into localStorage
+    const keyInput = document.getElementById('providerApiKey');
+    keyInput.value = 'gsk_browser_test_key_xyz';
+    keyInput.dispatchEvent(new Event('input', { bubbles: true }));
+    keyInput.dispatchEvent(new Event('change', { bubbles: true }));
+    const storedKey = localStorage.getItem('sage-byok-key');
+
+    return {
+      modelFitsH,
+      modelFitsV,
+      convFitsH,
+      convFitsV,
+      storedKeyMatches: storedKey === 'gsk_browser_test_key_xyz'
+    };
+  })()`);
+
+  assert.equal(result.modelFitsH, true, "Model dropdown must fit within horizontal mobile screen boundaries");
+  assert.equal(result.modelFitsV, true, "Model dropdown must fit within vertical mobile screen boundaries");
+  assert.equal(result.convFitsH, true, "Conversation options dropdown must fit horizontally without clipping");
+  assert.equal(result.convFitsV, true, "Conversation options dropdown must fit vertically without being cut in half");
+  assert.equal(result.storedKeyMatches, true, "API key input must auto-persist to localStorage");
+
+  await command("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
+});
