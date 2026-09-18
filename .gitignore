@@ -8,3 +8,6 @@ node_modules/
 .env
 .claude/
 mockup-*.html
+
+.vercel
+.env*
