@@ -9755,6 +9755,8 @@
       }
     };
   </script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
   <script
     async
     id="mathJaxScript"
@@ -9880,7 +9882,7 @@
       };
       return [
         "You are Vela, the AI assistant inside the Vela workspace. You are not a text-only chatbot: you can create durable artifacts that Vela extracts from fenced code blocks, saves with the current conversation, and opens in the artifact canvas beside the chat.",
-        "Vela's artifact canvas supports Preview, Source, Split, History, version saving, download, pinning, full screen, and a conversation-scoped artifact library. Supported artifact languages are HTML, SVG, Markdown, Mermaid, CSV, TSV, JSON, Python, JavaScript, CSS, PDF, and PPTX. PDF and PPTX artifacts are supported natively without needing HTML wrappers or print dialog dependencies: PDF opens in a native document reader with page controls, zoom, and direct .pdf binary download; PPTX opens in a 16:9 widescreen presentation player with slide navigation, themes, speaker notes, and direct .pptx binary download. HTML opens in a sandboxed interactive preview with responsive viewport controls, console, and new-tab viewing. SVG and Mermaid open as visual previews and can export PNG; Markdown renders as a document; CSV/TSV and suitable JSON render as data tables. Python and JavaScript are shown as editable source and are not executed. Writing mode also has a Writing Studio; Research mode has a Research workspace with sources, notes, bibliography, and draft; Code mode has a coding workspace and explicit patch acceptance.",
+        "Vela's artifact canvas supports Preview, Source, Split, History, version saving, download, pinning, full screen, and a conversation-scoped artifact library. Supported artifact languages are HTML, SVG, Markdown, Mermaid, CSV, TSV, JSON, Python, JavaScript, CSS, PDF, and PPTX. PDF and PPTX artifacts are supported natively without needing HTML wrappers or print dialog dependencies: PDF opens in a native document reader with page controls, zoom, and direct .pdf binary download; PPTX opens in a 16:9 widescreen presentation player with slide navigation, themes, speaker notes, and direct .pptx binary download. HTML opens in a sandboxed interactive preview with responsive viewport controls, console, and new-tab viewing. SVG and Mermaid open as visual previews and can export PNG; Markdown renders as a document; CSV/TSV and suitable JSON render as data tables. Python and JavaScript can be run interactively in the canvas with live execution output and plots, or edited directly. Writing mode also has a Writing Studio; Research mode has a Research workspace with sources, notes, bibliography, and draft; Code mode has a coding workspace and explicit patch acceptance.",
         "Artifact delivery contract: when the user asks you to create, design, build, generate, or make a document, report, PDF, résumé, invoice, brochure, poster, deck, slides, presentation, diagram, chart, webpage, or other visual deliverable, create the actual artifact now—do not merely claim you can, give instructions, or substitute raw LaTeX. Put every artifact in a correctly labeled fenced code block so Vela can detect and present it. Keep explanatory prose outside the fence.",
         "For a PDF request, create a complete, publication-ready native PDF artifact in a ```pdf code block (using structured JSON or clean Markdown with --- page breaks). Include headings, structured sections, paragraphs, tables, bullet lists, or callouts as appropriate. For competitive exam question papers, DPPs, worksheets, and tests: use clean Markdown with an exam header banner (e.g. # DPP-05: ... followed by metadata such as **Subject:** Zoology | **Topic:** Chemical Coordination | **Max Marks:** 100 | **Time:** 60 Mins). You can enable compact two-column publication layout by placing <!-- layout: two-column --> or layout: two-column at the top. Format each question cleanly (e.g. 1. Question text...) with structured multiple choice options: (1) Option A  (2) Option B / (3) Option C  (4) Option D or on individual lines. NEVER use Markdown tables (| Col 1 | Col 2 |) to create columns for questions; simply write questions sequentially (1. ..., 2. ..., 3. ...) and Vela's publication engine automatically flows them into two elegant columns. DO NOT output raw YAML metadata like title: '...' subject: '...' as plain text at the top; use the clean Markdown banner. Standard mathematical and scientific formulas (such as \\frac{a}{b}, \\vec{v}, \\hat{i}, \\hat{j}, ^\\circ, ^2, _1, \\gg, \\ll, \\ge, \\le, \\theta, \\alpha, \\beta, \\Delta, etc.) are compiled natively by Vela's PDF engine into crisp typographic symbols. NEVER insert raw HTML tags or styles (e.g. <div style=\"...\">, <span>, <style>) inside markdown PDF blocks. Vela's native PDF engine immediately renders the document in the artifact canvas and compiles a genuine .pdf binary that the user can download directly. Do not fall back to HTML or instruct the user to use the print dialog unless they explicitly ask for an HTML page.",
         "For a presentation, slide deck, PowerPoint, or PPTX request, create a complete, publication-ready native presentation artifact in a ```pptx code block (using structured JSON or clean Markdown with --- slide breaks). Take full advantage of Vela's modern 16:9 presentation engine: design topnotch, modern slides by choosing an appropriate theme (vibrant, midnight, emerald, slate, dark, or light) and layout per slide: layout: title (with badge/kicker, bold headline, subtitle), layout: cards (2-4 feature cards with colored indicator bars, titles, and descriptions), layout: stats (high-impact KPI metrics with large values and labels), layout: timeline (multi-step process with numbered nodes and descriptions), layout: two-column (side-by-side comparisons), layout: quote (italic testimonial with author citation), or layout: bullets (feature rows with bold lead terms). You can customize card grid dimensions flexibly (e.g. columns: 2 or cols: 3, grid: '2x2', or card span: 2) to match content density. You can also configure slide transitions (transition: 'fade' | 'slide' | 'zoom' | 'flip' | 'wipe') and element entrance effects (effect: 'fade-up' | 'slide-up' | 'zoom-in' | 'pop' | 'flip-up' | 'glow', with optional delay: '0.2s', duration: '0.4s' on individual cards, stats, or timeline items). Include presenter notes in notes: where helpful. Vela's presentation engine renders these visual layouts, shapes, cards, and transitions natively in the artifact canvas and compiles a genuine .pptx binary archive with OpenXML DrawingML shapes that opens natively in Microsoft PowerPoint, Keynote, and Google Slides.",
@@ -13664,6 +13666,12 @@
   <script src="/src/artifacts/core.js"></script>
   <script src="/src/artifacts/store.js"></script>
   <script src="/src/artifacts/renderers.js"></script>
+  <script src="/src/artifacts/markdown-engine.js"></script>
+  <script src="/src/artifacts/interactive-engine.js"></script>
+  <script src="/src/artifacts/execution-engine.js"></script>
+  <script src="/src/artifacts/document-pipeline.js"></script>
+  <script src="/src/artifacts/docx-engine.js"></script>
+  <script src="/src/artifacts/book-pdf-engine.js"></script>
   <script src="/src/artifacts/pdf-engine.js"></script>
   <script src="/src/artifacts/pptx-engine.js"></script>
   <script src="/src/app/workspace-state.js"></script>
@@ -15925,10 +15933,14 @@
               .filter(Boolean))
           : new Set();
         try {
-          container.innerHTML =
-            typeof renderMarkdown === "function"
-              ? renderMarkdown(markdown)
-              : fallbackMarkdown(markdown);
+          if (window.VelaMarkdownEngine?.diffAndRender) {
+            window.VelaMarkdownEngine.diffAndRender(container, markdown, { isStreaming: !typeset });
+          } else {
+            container.innerHTML =
+              typeof renderMarkdown === "function"
+                ? renderMarkdown(markdown)
+                : fallbackMarkdown(markdown);
+          }
         } catch {
           container.innerHTML = fallbackMarkdown(markdown);
         }
@@ -18062,8 +18074,11 @@
       }
 
       function createArtifactPreview(language, source) {
+        const norm = window.VelaArtifacts?.normalizeLanguage(language) || language;
         return window.VelaArtifactRenderers.createPreview(document, language, source, {
           title: activeArtifact?.title || artifactTitle(language, source),
+          execute: ["python", "javascript", "js"].includes(norm),
+          interactive: true,
           sanitizeSvg(value) {
             return window.DOMPurify
               ? DOMPurify.sanitize(value, { USE_PROFILES: { svg: true, svgFilters: true } })
@@ -18132,7 +18147,46 @@
         host.className = "artifact-preview-host";
         host.appendChild(createArtifactPreview(language, source));
 
-        if (normalized === "html") {
+        if (normalized === "markdown") {
+          toolbar.innerHTML = `
+            <button class="artifact-tool" data-md-action="copy-raw" type="button" title="Copy raw markdown">Copy markdown</button>
+            <button class="artifact-tool" data-md-action="copy-plain" type="button" title="Copy rendered plain text">Copy text</button>
+            <button class="artifact-tool" data-md-action="download-md" type="button" title="Download .md file">Download .md</button>
+            <button class="artifact-tool" data-md-action="export-docx" type="button" title="Export polished Word DOCX">Export DOCX</button>
+            <button class="artifact-tool" data-md-action="export-pdf" type="button" title="Export publication-grade PDF">Export PDF</button>
+          `;
+          toolbar.querySelector('[data-md-action="copy-raw"]')?.addEventListener("click", async () => {
+            await window.VelaMarkdownEngine?.copyRawMarkdown(source);
+            showControllerToast("Markdown copied to clipboard");
+          });
+          toolbar.querySelector('[data-md-action="copy-plain"]')?.addEventListener("click", async () => {
+            await window.VelaMarkdownEngine?.copyPlainText(source);
+            showControllerToast("Plain text copied to clipboard");
+          });
+          toolbar.querySelector('[data-md-action="download-md"]')?.addEventListener("click", () => {
+            const fname = activeArtifact?.title || "document";
+            window.VelaMarkdownEngine?.downloadMarkdown(source, fname);
+          });
+          toolbar.querySelector('[data-md-action="export-docx"]')?.addEventListener("click", () => {
+            const title = activeArtifact?.title || "Document";
+            const pipeline = new window.VelaDocumentPipeline.DocumentGenerationPipeline({ topic: title });
+            pipeline.setOutline({ title, chapters: [{ number: 1, title: "Content", sections: [{ id: "1.1", title, keyPoints: [] }] }] });
+            pipeline.sections = [{ chapterNumber: 1, sectionId: "1.1", sectionTitle: title, content: source }];
+            const structuredDoc = pipeline.assembleStructuredDocument();
+            window.VelaDocxEngine?.downloadDocx(structuredDoc, `${title}.docx`);
+            showControllerToast("DOCX exported successfully");
+          });
+          toolbar.querySelector('[data-md-action="export-pdf"]')?.addEventListener("click", () => {
+            const title = activeArtifact?.title || "Document";
+            const pipeline = new window.VelaDocumentPipeline.DocumentGenerationPipeline({ topic: title });
+            pipeline.setOutline({ title, chapters: [{ number: 1, title: "Content", sections: [{ id: "1.1", title, keyPoints: [] }] }] });
+            pipeline.sections = [{ chapterNumber: 1, sectionId: "1.1", sectionTitle: title, content: source }];
+            const structuredDoc = pipeline.assembleStructuredDocument();
+            window.VelaBookPdfEngine?.downloadBookPdf(structuredDoc, `${title}.pdf`);
+            showControllerToast("PDF exported successfully");
+          });
+          wrap.append(toolbar, host);
+        } else if (normalized === "html") {
           toolbar.innerHTML = `
             <span class="artifact-viewport-group" role="group" aria-label="Preview viewport">
               <button class="artifact-tool" data-viewport="390" type="button">Mobile</button>

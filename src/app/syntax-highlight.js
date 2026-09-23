@@ -97,6 +97,56 @@
     }
   }
 
+  let workerInstance = null;
+  const pendingWorkerJobs = new Map();
+  let workerJobCounter = 0;
+
+  function getWorker() {
+    if (workerInstance) return workerInstance;
+    if (typeof Worker !== "undefined" && typeof document !== "undefined") {
+      try {
+        workerInstance = new Worker("/src/app/syntax-worker.js");
+        workerInstance.onmessage = (e) => {
+          const { id, highlighted, success } = e.data || {};
+          const resolver = pendingWorkerJobs.get(id);
+          if (resolver) {
+            pendingWorkerJobs.delete(id);
+            resolver({ highlighted, success });
+          }
+        };
+      } catch {
+        workerInstance = null;
+      }
+    }
+    return workerInstance;
+  }
+
+  function highlightAsync(source, language) {
+    const worker = getWorker();
+    const cleanLang = canonical(language);
+    const text = String(source || "");
+
+    if (worker && text.length > 5000) {
+      return new Promise((resolve) => {
+        const id = `sh-${++workerJobCounter}`;
+        pendingWorkerJobs.set(id, resolve);
+        worker.postMessage({ id, code: text, language: cleanLang });
+        // Timeout fallback
+        setTimeout(() => {
+          if (pendingWorkerJobs.has(id)) {
+            pendingWorkerJobs.delete(id);
+            resolve({ highlighted: highlight(text, cleanLang), success: false });
+          }
+        }, 1500);
+      });
+    }
+
+    return Promise.resolve({
+      highlighted: highlight(text, cleanLang),
+      success: true
+    });
+  }
+
   function enhance(container) {
     container?.querySelectorAll("pre > code").forEach((code) => {
       if (code.dataset.velaHighlighted === "true") return;
@@ -105,11 +155,27 @@
       code.dataset.language = language;
       code.dataset.velaHighlighted = "true";
       code.classList.add("vela-highlighted");
-      if (!enhanceWithHighlightJs(code, language)) {
-        code.innerHTML = highlight(code.textContent, language);
+
+      const text = code.textContent || "";
+      if (text.length > 8000 && typeof requestIdleCallback !== "undefined") {
+        requestIdleCallback(() => {
+          if (!enhanceWithHighlightJs(code, language)) {
+            code.innerHTML = highlight(text, language);
+          }
+        });
+      } else {
+        if (!enhanceWithHighlightJs(code, language)) {
+          code.innerHTML = highlight(text, language);
+        }
       }
     });
   }
 
-  globalThis.VelaSyntaxHighlight = Object.freeze({ canonical, highlight, enhance });
+  globalThis.VelaSyntaxHighlight = Object.freeze({
+    canonical,
+    highlight,
+    highlightAsync,
+    enhance,
+    HLJS_LANGUAGES
+  });
 })();

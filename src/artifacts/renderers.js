@@ -157,7 +157,18 @@
   function createPreview(document, language, source, options = {}) {
     const renderer = get(language);
     const title = String(options.title || "Artifact");
+    const normalized = String(language || "").toLowerCase();
+
+    if (["python", "javascript", "js"].includes(normalized)) {
+      if (options.execute && globalThis.VelaExecutionEngine?.createExecutionCard) {
+        return globalThis.VelaExecutionEngine.createExecutionCard(document, normalized, source, options);
+      }
+    }
+
     if (renderer.preview === "iframe") {
+      if (options.interactive && globalThis.VelaInteractiveEngine?.createInteractiveFrame) {
+        return globalThis.VelaInteractiveEngine.createInteractiveFrame(document, source, options);
+      }
       const frame = document.createElement("iframe");
       frame.className = "artifact-preview-frame";
       frame.title = `${title} preview`;
@@ -264,11 +275,21 @@
     const surface = document.createElement("div");
     surface.className = "artifact-preview-surface markdown-body";
     if (renderer.preview === "sanitized-svg") {
+      if (options.interactive && globalThis.VelaInteractiveEngine?.createSvgInteractiveViewer) {
+        return globalThis.VelaInteractiveEngine.createSvgInteractiveViewer(document, source, options);
+      }
       surface.innerHTML = options.sanitizeSvg
         ? options.sanitizeSvg(String(source || ""))
         : options.escape(String(source || ""));
     } else if (renderer.preview === "markdown") {
-      options.renderMarkdown?.(surface, String(source || ""));
+      if (options.renderMarkdown) {
+        options.renderMarkdown(surface, String(source || ""));
+      } else if (globalThis.VelaMarkdownEngine?.renderMarkdownToHtml) {
+        surface.innerHTML = globalThis.VelaMarkdownEngine.renderMarkdownToHtml(source, options);
+        globalThis.VelaMarkdownEngine.renderMermaidBlocks?.(surface);
+      } else {
+        surface.textContent = String(source || "");
+      }
     } else {
       const pre = document.createElement("pre");
       pre.textContent = String(source || "");
