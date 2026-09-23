@@ -87,12 +87,15 @@
     const cspMeta = `<meta http-equiv="Content-Security-Policy" content="${CSP_POLICY}">`;
     const viewportMeta = `<meta name="viewport" content="width=device-width, initial-scale=1.0">`;
 
-    // Detect if this is a React/JSX snippet
-    const isJsx = options.isJsx || /\b(?:React|ReactDOM|import\s+React|export\s+default\s+function|<[A-Z][A-Za-z0-9.]*[\s\/>])/.test(raw);
+    // Only treat as raw JSX snippet if it is NOT already a complete HTML document
+    const isFullHtml = /<!DOCTYPE\b|<\s*html\b|<\s*head\b|<\s*body\b/i.test(raw);
+    const isJsx = !isFullHtml && (options.isJsx || /\b(?:React|ReactDOM|import\s+React|export\s+default\s+function|<[A-Z][A-Za-z0-9.]*[\s\/>])/.test(raw));
 
     let content = raw;
 
     if (isJsx) {
+      // Escape any closing script tags inside the raw JSX to prevent premature tag termination
+      const safeJsx = raw.replace(/<\/script>/gi, "<\\/script>");
       content = `<!DOCTYPE html>
 <html>
 <head>
@@ -111,7 +114,7 @@
   ${RUNTIME_BRIDGE}
   <script type="text/babel">
     try {
-      ${raw}
+      ${safeJsx}
       if (typeof App !== "undefined" && !document.getElementById("root").hasChildNodes()) {
         const root = ReactDOM.createRoot(document.getElementById("root"));
         root.render(React.createElement(App));
@@ -125,13 +128,18 @@
       return content;
     }
 
-    // Standard HTML page
+    // Standard HTML page: auto-inject Babel if user HTML includes text/babel scripts
+    let headExtras = `${cspMeta}\n  ${viewportMeta}\n  ${RUNTIME_BRIDGE}`;
+    if (/type=["']text\/babel["']/i.test(content) && !/babel(?:\.min)?\.js/i.test(content)) {
+      headExtras += `\n  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.24.7/babel.min.js"><\/script>`;
+    }
+
     if (/<head[^>]*>/i.test(content)) {
-      content = content.replace(/<head[^>]*>/i, (m) => `${m}\n  ${cspMeta}\n  ${viewportMeta}\n  ${RUNTIME_BRIDGE}`);
+      content = content.replace(/<head[^>]*>/i, (m) => `${m}\n  ${headExtras}`);
     } else if (/<html[^>]*>/i.test(content)) {
-      content = content.replace(/<html[^>]*>/i, (m) => `${m}\n<head>${cspMeta}${viewportMeta}${RUNTIME_BRIDGE}</head>`);
+      content = content.replace(/<html[^>]*>/i, (m) => `${m}\n<head>${headExtras}</head>`);
     } else {
-      content = `<!DOCTYPE html><html><head>${cspMeta}${viewportMeta}${RUNTIME_BRIDGE}</head><body>${content}</body></html>`;
+      content = `<!DOCTYPE html><html><head>${headExtras}</head><body>${content}</body></html>`;
     }
 
     return content;

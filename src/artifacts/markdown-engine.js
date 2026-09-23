@@ -32,7 +32,7 @@
         const rendered = globalThis.katex.renderToString(tex, {
           displayMode: Boolean(displayMode),
           throwOnError: false,
-          output: "htmlAndMathml"
+          output: "html"
         });
         mathCache.set(key, rendered);
         return rendered;
@@ -202,7 +202,7 @@
         const id = `mermaid-${hashString(decoded)}-${Math.random().toString(36).slice(2, 7)}`;
         return `
           <div class="artifact-mermaid-container" data-mermaid-id="${id}">
-            <div class="artifact-mermaid-surface mermaid" id="${id}">${escapeHTML(decoded)}</div>
+            <div class="artifact-mermaid-surface" id="${id}">${escapeHTML(decoded)}</div>
             <div class="artifact-mermaid-fallback" style="display:none;"></div>
           </div>
         `;
@@ -534,15 +534,17 @@
 
       try {
         // Configure strict error handling
+        const isDark = (document.documentElement?.dataset?.theme === "dark" || document.documentElement?.classList?.contains("dark"));
         globalThis.mermaid.initialize({
           startOnLoad: false,
-          securityLevel: "strict",
-          theme: document.documentElement.classList.contains("dark") ? "dark" : "default",
+          securityLevel: "loose",
+          theme: isDark ? "dark" : "neutral",
           suppressErrorRendering: true
         });
 
-        const id = block.id || `mermaid-render-${Math.random().toString(36).slice(2, 7)}`;
-        const { svg } = await globalThis.mermaid.render(id, rawDiagram);
+        // Use a strictly fresh unique ID for SVG generation that does not clash with any DOM element
+        const svgRenderId = `mermaid-svg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const { svg } = await globalThis.mermaid.render(svgRenderId, rawDiagram);
         block.innerHTML = svg;
       } catch (err) {
         console.warn("Mermaid diagram rendering error:", err);

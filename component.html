@@ -23,6 +23,7 @@
     rel="stylesheet"
     href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap"
   />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
   <title>Vela — Thoughtful AI Assistant</title>
   <style>
     /* ---------------------------------------------------------------------
@@ -2853,7 +2854,8 @@
       gap: 3px;
     }
 
-    .markdown-code-open {
+    .markdown-code-open,
+    .markdown-code-run {
       padding: 4px 8px;
       border: 0;
       border-radius: 5px;
@@ -2864,8 +2866,14 @@
       font-weight: 650;
     }
 
-    .markdown-code-open:hover {
+    .markdown-code-open:hover,
+    .markdown-code-run:hover {
       background: var(--accent-soft);
+    }
+
+    .markdown-code-run {
+      color: #10b981;
+      font-weight: 700;
     }
 
     @media (min-width: 821px) {
@@ -11626,6 +11634,7 @@
           <div class="markdown-code-header">
             <span>${escapeHTML(filePath ? `${language} ${filePath}` : language)}</span>
             <span class="markdown-code-actions">
+              ${canOpen && ["python", "javascript", "js"].includes(language.toLowerCase()) ? '<button class="markdown-code-run" type="button">Run</button>' : ""}
               ${canOpen ? '<button class="markdown-code-open" type="button">Open canvas</button>' : ""}
               <button class="markdown-code-copy" type="button">Copy</button>
             </span>
@@ -12070,7 +12079,7 @@
     function typesetMath(container) {
       enhanceRenderedMarkdown(container);
 
-      if (window.mermaid && container?.querySelector(".mermaid")) {
+      if (window.mermaid && container?.querySelector(".mermaid:not(.artifact-mermaid-surface)")) {
         try {
           window.mermaid.initialize({
             startOnLoad: false,
@@ -12078,12 +12087,14 @@
             theme: root.dataset.theme === "dark" ? "dark" : "neutral"
           });
           window.mermaid.run({
-            nodes: container.querySelectorAll(".mermaid")
+            nodes: container.querySelectorAll(".mermaid:not(.artifact-mermaid-surface)")
           }).catch(() => {});
         } catch {}
       }
 
-      if (window.MathJax?.typesetPromise) {
+      // Do NOT run MathJax if KaTeX math has already been processed in container to avoid duplicate math strings
+      const hasKatexMath = Boolean(container?.querySelector(".katex, .math-inline, .math-block, [data-tex]"));
+      if (!hasKatexMath && window.MathJax?.typesetPromise) {
         window.MathJax.typesetClear?.([container]);
         window.MathJax.typesetPromise([container]).catch(() => {});
       }
@@ -18305,7 +18316,10 @@
           return;
         }
 
-        if (mode === "source" || renderer.preview === "source") {
+        const normLang = window.VelaArtifacts?.normalizeLanguage(language) || language;
+        const isRunnable = ["python", "javascript", "js"].includes(normLang);
+
+        if (mode === "source" || (!isRunnable && renderer.preview === "source")) {
           activeArtifactMode = "source";
           const editor = document.createElement("textarea");
           editor.className = "artifact-source";
@@ -18355,7 +18369,7 @@
         applyWorkspaceState();
       }
 
-      function openArtifactCanvas(language, source, titleText = "") {
+      function openArtifactCanvas(language, source, titleText = "", options = {}) {
         const normalized = normalizeArtifactLanguage(language);
         if (window.VelaArtifacts?.isComplete && !window.VelaArtifacts.isComplete(normalized, source)) {
           if (typeof showControllerToast === "function") {
@@ -18367,8 +18381,15 @@
         if (!activeArtifact) return;
         artifactCanvasTitle.textContent = activeArtifact.title;
         artifactCanvasType.textContent = `${activeArtifact.language} · v${activeArtifact.version}`;
+        activeArtifactMode = options.mode || "preview";
         showArtifactCanvas();
         renderArtifactView(activeArtifactMode);
+        if (options.autoRun) {
+          setTimeout(() => {
+            const runBtn = artifactCanvasBody.querySelector(".artifact-run-btn");
+            runBtn?.click();
+          }, 150);
+        }
       }
 
       function collectGlobalArtifacts() {
@@ -19378,6 +19399,19 @@
             if (["tests", "refactor", "optimize"].includes(action)) setTaskMode("code");
             updateComposer();
             input.focus();
+            return;
+          }
+
+          const runButton = event.target.closest(".markdown-code-run");
+          if (runButton) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            const block = runButton.closest(".markdown-code");
+            const code = block?.querySelector("pre > code");
+            const languageClass = [...(code?.classList || [])].find((name) => name.startsWith("language-"));
+            const lang = languageClass?.slice(9) || "text";
+            const src = code?.textContent || "";
+            openArtifactCanvas(lang, src, "", { autoRun: true });
             return;
           }
 
