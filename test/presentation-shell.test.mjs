@@ -113,3 +113,30 @@ test("createUserArticle renders interactive attachment preview buttons with meta
   assert.equal(attachmentButtons[1].title, "Click to preview report.pdf");
   assert.equal(attachmentButtons[1]._velaAttachment, sampleAttachments[1]);
 });
+
+test("createAssistantArticle renders smart streaming indicator with task-aware initial verb", () => {
+  const mockDocument = {
+    createElement: (tag) => ({
+      tagName: tag.toUpperCase(),
+      className: "",
+      classList: { add: () => {}, toggle: () => {}, remove: () => {}, contains: () => false },
+      dataset: {},
+      attributes: {},
+      innerHTML: "",
+      querySelector: () => null
+    })
+  };
+
+  const article = presentation.createAssistantArticle(mockDocument, {
+    userIndex: 0,
+    taskMode: "code"
+  });
+
+  assert.match(article.innerHTML, /class="streaming-cursor streaming-indicator"/);
+  assert.match(article.innerHTML, /class="streaming-indicator-spinner"/);
+  assert.match(article.innerHTML, /<svg class="streaming-spinner-svg"/);
+  assert.match(article.innerHTML, /class="streaming-spinner-core"/);
+  assert.match(article.innerHTML, /class="streaming-indicator-verb"/);
+  assert.match(article.innerHTML, /Architecting…/);
+});
+

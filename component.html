@@ -2579,7 +2579,7 @@
     .quiet-mode .artifact-library-card,
     .quiet-mode .markdown-code { box-shadow: none; }
     .quiet-mode .startup h1 { font-family: var(--font); font-weight: 650; }
-    .quiet-mode .streaming-cursor { animation: none; }
+    .quiet-mode :is(.streaming-cursor, .streaming-indicator) { animation: none !important; box-shadow: none !important; }
     .quiet-mode * { transition-duration: .01ms !important; animation-duration: .01ms !important; }
 
     .markdown-body {
@@ -5084,18 +5084,232 @@
       height: 15px;
     }
 
-    .streaming-cursor {
-      display: inline-block;
-      width: 2px;
-      height: 1em;
-      margin-left: 3px;
-      vertical-align: -0.13em;
-      background: var(--accent);
-      animation: blink 900ms steps(1) infinite;
+    /* Streaming Indicator & Smart Verb Spinner */
+    .streaming-cursor,
+    .streaming-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      height: 25px;
+      padding: 0 10px 0 7px;
+      margin: 8px 0 4px;
+      border-radius: 9999px;
+      background: color-mix(in srgb, var(--surface) 90%, var(--accent-soft) 30%);
+      border: 1px solid color-mix(in srgb, var(--border) 70%, var(--accent) 22%);
+      box-shadow:
+        0 1px 3px rgba(0, 0, 0, 0.04),
+        0 4px 12px rgba(0, 0, 0, 0.02),
+        0 0 0 1px rgba(255, 255, 255, 0.7) inset;
+      backdrop-filter: blur(12px) saturate(120%);
+      -webkit-backdrop-filter: blur(12px) saturate(120%);
+      color: var(--text-soft);
+      font-family: var(--font);
+      font-size: 11.5px;
+      font-weight: 520;
+      letter-spacing: 0.02em;
+      line-height: 1;
+      vertical-align: middle;
+      user-select: none;
+      pointer-events: none;
+      cursor: default;
+      transition:
+        border-color 280ms ease,
+        background 280ms ease,
+        box-shadow 280ms ease,
+        opacity 240ms ease,
+        transform 240ms cubic-bezier(0.16, 1, 0.3, 1);
+      animation: velaIndicatorEntrance 300ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
 
-    @keyframes blink {
-      50% { opacity: 0; }
+    @keyframes velaIndicatorEntrance {
+      from {
+        opacity: 0;
+        transform: translateY(4px) scale(0.96);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    /* Dark mode */
+    html[data-theme="dark"] :is(.streaming-indicator, .streaming-cursor) {
+      background: color-mix(in srgb, var(--surface-subtle) 82%, var(--accent) 12%);
+      border-color: color-mix(in srgb, var(--border-strong) 65%, var(--accent) 28%);
+      box-shadow:
+        0 2px 8px rgba(0, 0, 0, 0.4),
+        0 0 0 1px rgba(255, 255, 255, 0.06) inset,
+        0 0 14px color-mix(in srgb, var(--accent) 15%, transparent);
+      color: var(--text-soft);
+    }
+
+    /* OLED mode */
+    html[data-theme="oled"] :is(.streaming-indicator, .streaming-cursor) {
+      background: color-mix(in srgb, #000000 88%, var(--accent) 14%);
+      border-color: color-mix(in srgb, var(--border-strong) 75%, var(--accent) 32%);
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.08) inset,
+        0 0 16px color-mix(in srgb, var(--accent) 20%, transparent);
+    }
+
+    /* Micro-spinner geometry & aura */
+    .streaming-indicator-spinner {
+      position: relative;
+      width: 14px;
+      height: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: var(--accent);
+    }
+
+    .streaming-spinner-svg {
+      width: 14px;
+      height: 14px;
+      transform-origin: center;
+      animation: velaSpin 950ms cubic-bezier(0.42, 0.05, 0.58, 0.95) infinite;
+    }
+
+    .streaming-spinner-svg .spinner-track {
+      opacity: 0.16;
+    }
+
+    .streaming-spinner-svg .spinner-head {
+      opacity: 0.95;
+      stroke: var(--accent);
+    }
+
+    @keyframes velaSpin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .streaming-spinner-core {
+      position: absolute;
+      width: 3.5px;
+      height: 3.5px;
+      border-radius: 50%;
+      background: var(--accent);
+      opacity: 0.75;
+      box-shadow: 0 0 6px var(--accent);
+      animation: velaCoreGlow 1800ms ease-in-out infinite alternate;
+    }
+
+    @keyframes velaCoreGlow {
+      0% {
+        opacity: 0.5;
+        transform: scale(0.85);
+        box-shadow: 0 0 3px var(--accent);
+      }
+      100% {
+        opacity: 0.95;
+        transform: scale(1.18);
+        box-shadow: 0 0 8px var(--accent);
+      }
+    }
+
+    /* Verb container and transitions */
+    .streaming-indicator-label {
+      display: inline-grid;
+      align-items: center;
+      overflow: hidden;
+      height: 15px;
+      line-height: 15px;
+      min-width: 48px;
+    }
+
+    .streaming-indicator-verb {
+      grid-area: 1 / 1;
+      display: inline-block;
+      white-space: nowrap;
+      font-family: var(--font);
+      font-size: 11.5px;
+      font-weight: 520;
+      letter-spacing: 0.025em;
+      color: var(--text-soft);
+      background: linear-gradient(
+        90deg,
+        var(--text-soft) 0%,
+        color-mix(in srgb, var(--accent) 75%, var(--text)) 50%,
+        var(--text-soft) 100%
+      );
+      background-size: 200% 100%;
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: velaVerbShimmer 3.2s ease-in-out infinite;
+      transition:
+        transform 280ms cubic-bezier(0.16, 1, 0.3, 1),
+        opacity 280ms ease,
+        filter 280ms ease;
+      transform: translateY(0);
+      opacity: 1;
+      filter: blur(0);
+    }
+
+    @keyframes velaVerbShimmer {
+      0% { background-position: 100% 0; }
+      50% { background-position: 0% 0; }
+      100% { background-position: -100% 0; }
+    }
+
+    .streaming-indicator-verb.is-entering {
+      transform: translateY(7px);
+      opacity: 0;
+      filter: blur(2.5px);
+    }
+
+    .streaming-indicator-verb.is-exiting {
+      transform: translateY(-7px);
+      opacity: 0;
+      filter: blur(2.5px);
+    }
+
+    /* Quiet mode & Reduced motion */
+    .quiet-mode :is(.streaming-indicator, .streaming-cursor) {
+      animation: none !important;
+      background: var(--surface-subtle) !important;
+      border-color: var(--border) !important;
+      box-shadow: none !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+    }
+
+    .quiet-mode .streaming-indicator-spinner,
+    .quiet-mode .streaming-spinner-svg,
+    .quiet-mode .streaming-spinner-core {
+      animation: none !important;
+    }
+
+    .quiet-mode .streaming-spinner-core {
+      display: none !important;
+    }
+
+    .quiet-mode .streaming-indicator-verb {
+      animation: none !important;
+      background: none !important;
+      -webkit-text-fill-color: var(--text-soft) !important;
+      color: var(--text-soft) !important;
+      transition: none !important;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .streaming-indicator,
+      .streaming-cursor {
+        animation: none !important;
+        transition: none !important;
+      }
+      .streaming-spinner-svg {
+        animation-duration: 3s !important;
+      }
+      .streaming-spinner-core {
+        animation: none !important;
+      }
+      .streaming-indicator-verb {
+        animation: none !important;
+        transition: none !important;
+      }
     }
 
     /* New conversation */
@@ -12655,7 +12869,7 @@
               </div>
             </div>
           </div>
-          <p class="stream-target"><span class="streaming-cursor"></span></p>
+          <p class="stream-target">${window.VelaStreamingSpinner?.createIndicatorHTML?.("Thinking…") || '<span class="streaming-cursor streaming-indicator" role="status" aria-live="polite" aria-label="Generating response"><span class="streaming-indicator-spinner" aria-hidden="true"><svg class="streaming-spinner-svg" viewBox="0 0 16 16" width="14" height="14" fill="none"><circle class="spinner-track" cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.75" /><circle class="spinner-head" cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-dasharray="11 27" /></svg><span class="streaming-spinner-core"></span></span><span class="streaming-indicator-label"><span class="streaming-indicator-verb">Thinking…</span></span></span>'}</p>
           <div class="response-actions">
             <button class="mini-action copy-response" aria-label="Copy response">${icons.copy}</button>
             <button class="mini-action" aria-label="Good response">${icons.up}</button>
@@ -13692,6 +13906,7 @@
   <script src="/src/writing/store.js"></script>
   <script src="/src/code/workspace.js"></script>
   <script src="/src/conversation/store.js"></script>
+  <script src="/src/conversation/streaming-indicator.js"></script>
   <script src="/src/conversation/presentation.js"></script>
   <script src="/src/conversation/generation.js"></script>
   <script src="/src/conversation/titling.js"></script>
@@ -16934,7 +17149,23 @@
                 false,
                 true
               );
-              responseContainer.insertAdjacentHTML("beforeend", '<span class="streaming-cursor" aria-hidden="true"></span>');
+              if (window.VelaStreamingSpinner?.attach) {
+                window.VelaStreamingSpinner.attach(responseContainer, {
+                  text: run.latest.text,
+                  reasoning: run.latest.reasoning,
+                  taskMode: snapshotMessages[userIndex]?.taskMode || state.taskMode,
+                  startedAt: run.startedAt
+                });
+              } else {
+                responseContainer.insertAdjacentHTML("beforeend", '<span class="streaming-cursor streaming-indicator" aria-hidden="true"></span>');
+              }
+            } else if (!lastRenderedText && window.VelaStreamingSpinner?.attach) {
+              window.VelaStreamingSpinner.attach(responseContainer, {
+                text: "",
+                reasoning: run.latest.reasoning,
+                taskMode: snapshotMessages[userIndex]?.taskMode || state.taskMode,
+                startedAt: run.startedAt
+              });
             }
 
             const hasReasoningUpdate = run.latest.reasoning && run.latest.reasoning !== lastRenderedReasoning;
@@ -17078,6 +17309,7 @@
             saveState(true);
 
             try {
+              window.VelaStreamingSpinner?.detach?.(responseContainer);
               renderMarkdownContent(
                 responseContainer,
                 finalText
@@ -17146,6 +17378,7 @@
               persistStoredConversation(conversationId, stored);
             }
             if (isActiveConversation()) {
+              window.VelaStreamingSpinner?.detach?.(responseContainer);
               if (partialText) {
                 renderMarkdownContent(responseContainer, partialText);
                 renderReasoning(assistant, run.latest.reasoning || "");
@@ -17214,6 +17447,7 @@
           }
 
           if (isActiveConversation()) {
+            window.VelaStreamingSpinner?.detach?.(responseContainer);
             responseContainer.classList.add(
               "sage-response-error"
             );
