@@ -134,8 +134,8 @@ test("createAssistantArticle renders smart streaming indicator with task-aware i
 
   assert.match(article.innerHTML, /class="streaming-cursor streaming-indicator"/);
   assert.match(article.innerHTML, /class="streaming-indicator-spinner"/);
-  assert.match(article.innerHTML, /<svg class="streaming-spinner-svg"/);
-  assert.match(article.innerHTML, /class="streaming-spinner-core"/);
+  assert.match(article.innerHTML, /<svg class="streaming-gyro-svg"/);
+  assert.match(article.innerHTML, /class="gyro-core"/);
   assert.match(article.innerHTML, /class="streaming-indicator-verb"/);
   assert.match(article.innerHTML, /Architecting…/);
 });

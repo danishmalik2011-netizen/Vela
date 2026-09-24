@@ -1,219 +1,7 @@
 (() => {
   "use strict";
 
-  const DWELL_TIME_MS = 2800;
-
-  const VERB_CATEGORIES = Object.freeze({
-    INCEPTION_DEFAULT: [
-      "Thinking…",
-      "Reflecting…",
-      "Formulating approach…",
-      "Synthesizing…"
-    ],
-    INCEPTION_REASONING: [
-      "Reasoning…",
-      "Evaluating possibilities…",
-      "Structuring logic…",
-      "Deliberating…"
-    ],
-    INCEPTION_RESEARCH: [
-      "Investigating…",
-      "Synthesizing sources…",
-      "Exploring references…",
-      "Cross-referencing…"
-    ],
-    INCEPTION_CODE: [
-      "Architecting…",
-      "Analyzing constraints…",
-      "Designing solution…",
-      "Preparing implementation…"
-    ],
-    INCEPTION_WRITE: [
-      "Gathering ideas…",
-      "Outlining narrative…",
-      "Composing draft…",
-      "Structuring prose…"
-    ],
-
-    CODE_WEB: [
-      "Constructing components…",
-      "Structuring interfaces…",
-      "Styling elements…",
-      "Implementing logic…"
-    ],
-    CODE_DATA: [
-      "Crafting queries…",
-      "Structuring schema…",
-      "Compiling relations…",
-      "Processing datasets…"
-    ],
-    CODE_SYSTEMS: [
-      "Constructing types…",
-      "Optimizing routines…",
-      "Implementing algorithms…",
-      "Managing memory…"
-    ],
-    CODE_DEFAULT: [
-      "Writing code…",
-      "Implementing solution…",
-      "Structuring syntax…",
-      "Refactoring logic…"
-    ],
-
-    TABLES: [
-      "Structuring table…",
-      "Compiling data…",
-      "Aligning columns…",
-      "Formatting rows…"
-    ],
-    LISTS: [
-      "Outlining steps…",
-      "Detailing sequence…",
-      "Organizing points…",
-      "Enumerating…"
-    ],
-    MATH: [
-      "Calculating…",
-      "Deriving formulas…",
-      "Formulating equations…",
-      "Verifying values…"
-    ],
-    CITATIONS: [
-      "Cross-referencing…",
-      "Validating citations…",
-      "Distilling evidence…",
-      "Indexing references…"
-    ],
-
-    PROSE_EARLY: [
-      "Drafting response…",
-      "Unfolding thoughts…",
-      "Composing ideas…",
-      "Articulating premise…"
-    ],
-    PROSE_MID: [
-      "Elaborating…",
-      "Articulating insights…",
-      "Developing nuances…",
-      "Deepening context…"
-    ],
-    PROSE_LATE: [
-      "Synthesizing perspectives…",
-      "Connecting themes…",
-      "Refining analysis…",
-      "Crystallizing points…"
-    ],
-    PROSE_CLOSING: [
-      "Synthesizing takeaways…",
-      "Polishing response…",
-      "Refining conclusions…",
-      "Harmonizing summary…"
-    ]
-  });
-
-  function detectCategory(streamContext) {
-    const { text = "", reasoning = "", taskMode = "chat" } = streamContext || {};
-    const trimmedText = String(text || "").trim();
-    const trimmedReasoning = String(reasoning || "").trim();
-
-    // Inception phase (prior to any output tokens)
-    if (!trimmedText) {
-      if (trimmedReasoning) return "INCEPTION_REASONING";
-      if (taskMode === "research") return "INCEPTION_RESEARCH";
-      if (taskMode === "code") return "INCEPTION_CODE";
-      if (taskMode === "write") return "INCEPTION_WRITE";
-      return "INCEPTION_DEFAULT";
-    }
-
-    // Active code block detection (unclosed markdown fence)
-    const fenceMatches = text.match(/```/g);
-    const isOpenCodeBlock = fenceMatches && fenceMatches.length % 2 === 1;
-    if (isOpenCodeBlock) {
-      const lastFenceIndex = text.lastIndexOf("```");
-      const fenceHeader = text.slice(lastFenceIndex, lastFenceIndex + 30).toLowerCase();
-      if (/```(?:html|css|svg|jsx|tsx|vue|svelte|javascript|js|typescript|ts)/.test(fenceHeader)) {
-        return "CODE_WEB";
-      }
-      if (/```(?:sql|prisma|graphql|postgres|mysql)/.test(fenceHeader)) {
-        return "CODE_DATA";
-      }
-      if (/```(?:rust|rs|go|golang|c|cpp|c\+\+|zig)/.test(fenceHeader)) {
-        return "CODE_SYSTEMS";
-      }
-      return "CODE_DEFAULT";
-    }
-
-    // Recent content tail analysis (last 320 characters)
-    const tail = text.slice(-320);
-
-    // Markdown table structure
-    if (/\n\|[^\n]+\|\n\|?[\s:-|]+\|?/.test(tail) || (tail.match(/\n\|/g) || []).length >= 2) {
-      return "TABLES";
-    }
-
-    // Step-by-step or enumerated list breakdown
-    if (/\n(?:\d+\.|\*|-|#+)\s+[^\n]+/.test(tail)) {
-      return "LISTS";
-    }
-
-    // Mathematical formula or computation
-    if (/\$\$[^\$]+\$\$|\$[^\$\n]+\$|\\\[[\s\S]+?\\\]|\\\(.+?\\\)/.test(tail) || /\b(?:equation|formula|theorem|matrix|integral)\b/i.test(tail)) {
-      return "MATH";
-    }
-
-    // Citations / URLs
-    if (/https?:\/\/[^\s)]+|\[(?:source|\d+)\]/i.test(tail)) {
-      return "CITATIONS";
-    }
-
-    // Concluding cues
-    if (/\b(?:in summary|in conclusion|to conclude|to wrap up|takeaways?|key points?|finally)\b/i.test(tail) || text.length > 3200) {
-      return "PROSE_CLOSING";
-    }
-
-    // Generative narrative progression
-    if (text.length < 350) return "PROSE_EARLY";
-    if (text.length < 1400) return "PROSE_MID";
-    return "PROSE_LATE";
-  }
-
-  function getSmartVerb(streamContext, state) {
-    const category = detectCategory(streamContext);
-    const verbs = VERB_CATEGORIES[category] || VERB_CATEGORIES.INCEPTION_DEFAULT;
-
-    const now = Date.now();
-    const lastSwitch = state?.lastSwitch || 0;
-    const currentCategory = state?.category;
-    const currentVerb = state?.verb;
-
-    // Urgent transitions: Inception -> Text, or entering/exiting a code fence
-    const isUrgentCategoryChange =
-      (category.startsWith("CODE") && !currentCategory?.startsWith("CODE")) ||
-      (!category.startsWith("CODE") && currentCategory?.startsWith("CODE")) ||
-      (currentCategory?.startsWith("INCEPTION") && !category.startsWith("INCEPTION")) ||
-      (!currentCategory?.startsWith("INCEPTION") && category.startsWith("INCEPTION"));
-
-    if (currentVerb && !isUrgentCategoryChange && (now - lastSwitch < DWELL_TIME_MS)) {
-      return currentVerb;
-    }
-
-    // Cycle through verbs in the current category avoiding immediate repeats
-    let candidate = verbs[0];
-    if (verbs.length > 1) {
-      const remaining = verbs.filter((v) => v !== currentVerb);
-      const textEntropy = (streamContext?.text || "").length;
-      const seed = Math.floor(now / 1000) ^ textEntropy;
-      candidate = remaining[Math.abs(seed) % remaining.length];
-    }
-
-    if (state) {
-      state.category = category;
-      state.verb = candidate;
-      state.lastSwitch = now;
-    }
-
-    return candidate;
-  }
+  const GYRO_SVG = `<svg class="streaming-gyro-svg" viewBox="0 0 18 18" width="15" height="15" fill="none" aria-hidden="true"><circle class="gyro-outer-track" cx="9" cy="9" r="7" stroke="currentColor" stroke-width="1.2" opacity="0.16" /><circle class="gyro-outer-arc" cx="9" cy="9" r="7" stroke="var(--accent)" stroke-width="1.35" stroke-linecap="round" stroke-dasharray="14 30" /><circle class="gyro-inner-track" cx="9" cy="9" r="4.2" stroke="currentColor" stroke-width="1" opacity="0.14" /><circle class="gyro-inner-arc" cx="9" cy="9" r="4.2" stroke="var(--accent)" stroke-width="1.25" stroke-linecap="round" stroke-dasharray="9 17" /><circle class="gyro-core" cx="9" cy="9" r="1.3" fill="var(--accent)" /></svg>`;
 
   function escapeHtml(text) {
     return String(text || "")
@@ -224,10 +12,72 @@
       .replace(/'/g, "&#39;");
   }
 
-  const SPINNER_SVG = `<svg class="streaming-spinner-svg" viewBox="0 0 16 16" width="14" height="14" fill="none" aria-hidden="true"><circle class="spinner-track" cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.75" /><circle class="spinner-head" cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-dasharray="11 27" /></svg><span class="streaming-spinner-core" aria-hidden="true"></span>`;
+  function renderFlowingLetters(verb) {
+    const chars = Array.from(String(verb || "Thinking…"));
+    return chars.map((char, index) => {
+      if (char === " ") {
+        return `<span class="flowing-space">&nbsp;</span>`;
+      }
+      return `<span class="flowing-letter" style="--letter-idx:${index}">${escapeHtml(char)}</span>`;
+    }).join("");
+  }
+
+  function detectCategory(streamContext) {
+    const { text = "", reasoning = "", taskMode = "chat" } = streamContext || {};
+    const trimmedText = String(text || "").trim();
+    const trimmedReasoning = String(reasoning || "").trim();
+
+    // Inception phase (waiting for first text tokens)
+    if (!trimmedText) {
+      if (trimmedReasoning) return "INCEPTION_REASONING";
+      if (taskMode === "research") return "INCEPTION_RESEARCH";
+      if (taskMode === "code") return "INCEPTION_CODE";
+      if (taskMode === "write") return "INCEPTION_WRITE";
+      return "INCEPTION_DEFAULT";
+    }
+
+    // Active unclosed code block detection
+    const fenceMatches = text.match(/```/g);
+    const isOpenCodeBlock = fenceMatches && fenceMatches.length % 2 === 1;
+    if (isOpenCodeBlock) {
+      return "CODE";
+    }
+
+    // Table detection in recent tail
+    const tail = text.slice(-240);
+    if (/\n\|[^\n]+\|\n\|?[\s:-|]+\|?/.test(tail) || (tail.match(/\n\|/g) || []).length >= 2) {
+      return "TABLES";
+    }
+
+    return "GENERATING";
+  }
+
+  const STATIC_CATEGORY_VERBS = Object.freeze({
+    INCEPTION_DEFAULT: "Thinking…",
+    INCEPTION_REASONING: "Reasoning…",
+    INCEPTION_RESEARCH: "Investigating…",
+    INCEPTION_CODE: "Architecting…",
+    INCEPTION_WRITE: "Drafting…",
+    CODE: "Writing code…",
+    TABLES: "Structuring data…",
+    GENERATING: "Synthesizing…"
+  });
+
+  function getSmartVerb(streamContext, state) {
+    const category = detectCategory(streamContext);
+    const verb = STATIC_CATEGORY_VERBS[category] || "Thinking…";
+
+    if (state) {
+      state.category = category;
+      state.verb = verb;
+    }
+
+    return verb;
+  }
 
   function createIndicatorHTML(verb = "Thinking…") {
-    return `<span class="streaming-cursor streaming-indicator" role="status" aria-live="polite" aria-label="Generating response"><span class="streaming-indicator-spinner" aria-hidden="true">${SPINNER_SVG}</span><span class="streaming-indicator-label"><span class="streaming-indicator-verb">${escapeHtml(verb)}</span></span></span>`;
+    const safeVerb = String(verb || "Thinking…");
+    return `<span class="streaming-cursor streaming-indicator" role="status" aria-live="polite" aria-label="Generating response" data-current-verb="${escapeHtml(safeVerb)}"><span class="streaming-indicator-spinner" aria-hidden="true">${GYRO_SVG}</span><span class="streaming-indicator-label"><span class="streaming-indicator-verb">${renderFlowingLetters(safeVerb)}</span></span></span>`;
   }
 
   const activeSessions = new WeakMap();
@@ -240,44 +90,33 @@
       session = {
         element: null,
         category: null,
-        verb: "",
-        lastSwitch: 0,
-        timer: null,
-        context: streamContext || {}
+        verb: ""
       };
       activeSessions.set(container, session);
     }
-    session.context = streamContext || {};
 
-    const verb = getSmartVerb(session.context, session);
+    const verb = getSmartVerb(streamContext, session);
 
-    let indicator = container.querySelector(".streaming-indicator");
-    if (!indicator) {
-      const template = document.createElement("template");
-      template.innerHTML = createIndicatorHTML(verb);
-      indicator = (template.content && template.content.firstElementChild) || template.firstElementChild;
+    let indicator = session.element;
+    if (!indicator || !indicator.isConnected || indicator.parentNode !== container) {
+      indicator = container.querySelector(".streaming-indicator");
+      if (!indicator) {
+        const template = document.createElement("template");
+        template.innerHTML = createIndicatorHTML(verb);
+        indicator = (template.content && template.content.firstElementChild) || template.firstElementChild;
+        if (indicator) {
+          indicator.dataset.currentVerb = verb;
+          container.appendChild(indicator);
+        }
+      }
       session.element = indicator;
-      if (indicator) container.appendChild(indicator);
-    } else {
-      session.element = indicator;
+    }
+
+    if (indicator) {
       if (container.lastElementChild !== indicator) {
         container.appendChild(indicator);
       }
       updateVerb(indicator, verb);
-    }
-
-    if (!session.timer) {
-      session.timer = setInterval(() => {
-        if (!indicator || !indicator.isConnected) {
-          if (session.timer) {
-            clearInterval(session.timer);
-            session.timer = null;
-          }
-          return;
-        }
-        const updatedVerb = getSmartVerb(session.context, session);
-        updateVerb(indicator, updatedVerb);
-      }, 1000);
     }
 
     return indicator;
@@ -286,9 +125,9 @@
   function detach(container) {
     if (!container) return;
     const session = activeSessions.get(container);
-    if (session?.timer) {
-      clearInterval(session.timer);
-      session.timer = null;
+    if (session?.element) {
+      session.element.remove();
+      session.element = null;
     }
     const indicator = container.querySelector(".streaming-indicator");
     if (indicator) indicator.remove();
@@ -297,50 +136,21 @@
 
   function updateVerb(indicator, newVerb) {
     if (!indicator || !newVerb) return;
+    if (indicator.dataset.currentVerb === newVerb) return;
+    indicator.dataset.currentVerb = newVerb;
+
     const label = indicator.querySelector(".streaming-indicator-label");
     if (!label) return;
 
-    const currentVerbEl = label.querySelector(".streaming-indicator-verb:not(.is-exiting)");
-    if (!currentVerbEl) {
-      label.innerHTML = `<span class="streaming-indicator-verb">${escapeHtml(newVerb)}</span>`;
-      return;
-    }
-    if (currentVerbEl.textContent === newVerb) return;
-
-    const prefersReducedMotion =
-      typeof window !== "undefined" &&
-      window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-
-    if (prefersReducedMotion) {
-      currentVerbEl.textContent = newVerb;
-      return;
-    }
-
-    const enteringEl = document.createElement("span");
-    enteringEl.className = "streaming-indicator-verb is-entering";
-    enteringEl.textContent = newVerb;
-    label.appendChild(enteringEl);
-
-    if (typeof requestAnimationFrame === "function") {
-      requestAnimationFrame(() => {
-        currentVerbEl.classList.add("is-exiting");
-        enteringEl.classList.remove("is-entering");
-        setTimeout(() => {
-          if (currentVerbEl.parentNode) currentVerbEl.remove();
-        }, 290);
-      });
-    } else {
-      currentVerbEl.remove();
-      enteringEl.className = "streaming-indicator-verb";
-    }
+    label.innerHTML = `<span class="streaming-indicator-verb">${renderFlowingLetters(newVerb)}</span>`;
   }
 
   globalThis.VelaStreamingSpinner = Object.freeze({
-    DWELL_TIME_MS,
-    VERB_CATEGORIES,
+    STATIC_CATEGORY_VERBS,
     detectCategory,
     getSmartVerb,
     createIndicatorHTML,
+    renderFlowingLetters,
     attach,
     detach,
     updateVerb

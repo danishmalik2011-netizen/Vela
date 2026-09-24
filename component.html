@@ -5084,231 +5084,197 @@
       height: 15px;
     }
 
-    /* Streaming Indicator & Smart Verb Spinner */
+    /* Streaming Indicator: Pure, bubble-free, static text with flowing letter-by-letter wave */
     .streaming-cursor,
     .streaming-indicator {
       display: inline-flex;
       align-items: center;
       gap: 7px;
-      height: 25px;
-      padding: 0 10px 0 7px;
-      margin: 8px 0 4px;
-      border-radius: 9999px;
-      background: color-mix(in srgb, var(--surface) 90%, var(--accent-soft) 30%);
-      border: 1px solid color-mix(in srgb, var(--border) 70%, var(--accent) 22%);
-      box-shadow:
-        0 1px 3px rgba(0, 0, 0, 0.04),
-        0 4px 12px rgba(0, 0, 0, 0.02),
-        0 0 0 1px rgba(255, 255, 255, 0.7) inset;
-      backdrop-filter: blur(12px) saturate(120%);
-      -webkit-backdrop-filter: blur(12px) saturate(120%);
-      color: var(--text-soft);
+      margin: 4px 0 2px;
+      padding: 0;
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+      color: var(--text);
       font-family: var(--font);
-      font-size: 11.5px;
-      font-weight: 520;
-      letter-spacing: 0.02em;
+      font-size: 12px;
+      font-weight: 510;
       line-height: 1;
       vertical-align: middle;
       user-select: none;
       pointer-events: none;
       cursor: default;
-      transition:
-        border-color 280ms ease,
-        background 280ms ease,
-        box-shadow 280ms ease,
-        opacity 240ms ease,
-        transform 240ms cubic-bezier(0.16, 1, 0.3, 1);
-      animation: velaIndicatorEntrance 300ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
 
-    @keyframes velaIndicatorEntrance {
-      from {
-        opacity: 0;
-        transform: translateY(4px) scale(0.96);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-      }
-    }
-
-    /* Dark mode */
-    html[data-theme="dark"] :is(.streaming-indicator, .streaming-cursor) {
-      background: color-mix(in srgb, var(--surface-subtle) 82%, var(--accent) 12%);
-      border-color: color-mix(in srgb, var(--border-strong) 65%, var(--accent) 28%);
-      box-shadow:
-        0 2px 8px rgba(0, 0, 0, 0.4),
-        0 0 0 1px rgba(255, 255, 255, 0.06) inset,
-        0 0 14px color-mix(in srgb, var(--accent) 15%, transparent);
-      color: var(--text-soft);
-    }
-
-    /* OLED mode */
-    html[data-theme="oled"] :is(.streaming-indicator, .streaming-cursor) {
-      background: color-mix(in srgb, #000000 88%, var(--accent) 14%);
-      border-color: color-mix(in srgb, var(--border-strong) 75%, var(--accent) 32%);
-      box-shadow:
-        0 0 0 1px rgba(255, 255, 255, 0.08) inset,
-        0 0 16px color-mix(in srgb, var(--accent) 20%, transparent);
-    }
-
-    /* Micro-spinner geometry & aura */
+    /* Unique Celestial Gyroscope Micro-Spinner */
     .streaming-indicator-spinner {
       position: relative;
-      width: 14px;
-      height: 14px;
+      width: 15px;
+      height: 15px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
       color: var(--accent);
+      vertical-align: middle;
     }
 
-    .streaming-spinner-svg {
-      width: 14px;
-      height: 14px;
+    .streaming-gyro-svg {
+      width: 15px;
+      height: 15px;
+      display: block;
       transform-origin: center;
-      animation: velaSpin 950ms cubic-bezier(0.42, 0.05, 0.58, 0.95) infinite;
     }
 
-    .streaming-spinner-svg .spinner-track {
-      opacity: 0.16;
+    .gyro-outer-arc {
+      transform-origin: 9px 9px;
+      animation: gyroSpinClockwise 1200ms cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
     }
 
-    .streaming-spinner-svg .spinner-head {
-      opacity: 0.95;
-      stroke: var(--accent);
+    .gyro-inner-arc {
+      transform-origin: 9px 9px;
+      animation: gyroSpinCounterClockwise 1600ms cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
     }
 
-    @keyframes velaSpin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
+    .gyro-core {
+      transform-origin: 9px 9px;
+      animation: gyroCorePulse 2200ms ease-in-out infinite alternate;
     }
 
-    .streaming-spinner-core {
-      position: absolute;
-      width: 3.5px;
-      height: 3.5px;
-      border-radius: 50%;
-      background: var(--accent);
-      opacity: 0.75;
-      box-shadow: 0 0 6px var(--accent);
-      animation: velaCoreGlow 1800ms ease-in-out infinite alternate;
+    @keyframes gyroSpinClockwise {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
     }
 
-    @keyframes velaCoreGlow {
+    @keyframes gyroSpinCounterClockwise {
+      from { transform: rotate(360deg); }
+      to { transform: rotate(0deg); }
+    }
+
+    @keyframes gyroCorePulse {
       0% {
-        opacity: 0.5;
-        transform: scale(0.85);
-        box-shadow: 0 0 3px var(--accent);
+        opacity: 0.4;
+        transform: scale(0.8);
       }
       100% {
-        opacity: 0.95;
-        transform: scale(1.18);
-        box-shadow: 0 0 8px var(--accent);
+        opacity: 1;
+        transform: scale(1.3);
+        filter: drop-shadow(0 0 4px var(--accent));
       }
     }
 
-    /* Verb container and transitions */
+    /* Static verb with flowing letter-by-letter light flash */
     .streaming-indicator-label {
-      display: inline-grid;
-      align-items: center;
-      overflow: hidden;
-      height: 15px;
-      line-height: 15px;
-      min-width: 48px;
+      display: inline-flex;
+      align-items: baseline;
+      line-height: 1;
     }
 
     .streaming-indicator-verb {
-      grid-area: 1 / 1;
-      display: inline-block;
+      display: inline-flex;
+      align-items: baseline;
       white-space: nowrap;
       font-family: var(--font);
-      font-size: 11.5px;
-      font-weight: 520;
-      letter-spacing: 0.025em;
-      color: var(--text-soft);
-      background: linear-gradient(
-        90deg,
-        var(--text-soft) 0%,
-        color-mix(in srgb, var(--accent) 75%, var(--text)) 50%,
-        var(--text-soft) 100%
-      );
-      background-size: 200% 100%;
-      -webkit-background-clip: text;
-      background-clip: text;
-      -webkit-text-fill-color: transparent;
-      animation: velaVerbShimmer 3.2s ease-in-out infinite;
-      transition:
-        transform 280ms cubic-bezier(0.16, 1, 0.3, 1),
-        opacity 280ms ease,
-        filter 280ms ease;
-      transform: translateY(0);
-      opacity: 1;
-      filter: blur(0);
+      font-size: 12px;
+      font-weight: 510;
+      letter-spacing: 0.02em;
+      line-height: 1;
     }
 
-    @keyframes velaVerbShimmer {
-      0% { background-position: 100% 0; }
-      50% { background-position: 0% 0; }
-      100% { background-position: -100% 0; }
+    .flowing-letter {
+      display: inline-block;
+      color: var(--text-faint, #787d78);
+      opacity: 0.5;
+      animation: velaLetterFlow 2000ms cubic-bezier(0.4, 0, 0.2, 1) infinite;
+      animation-delay: calc(var(--letter-idx) * 75ms);
+      will-change: opacity, color, transform;
     }
 
-    .streaming-indicator-verb.is-entering {
-      transform: translateY(7px);
-      opacity: 0;
-      filter: blur(2.5px);
+    .flowing-space {
+      display: inline-block;
+      width: 0.28em;
     }
 
-    .streaming-indicator-verb.is-exiting {
-      transform: translateY(-7px);
-      opacity: 0;
-      filter: blur(2.5px);
+    @keyframes velaLetterFlow {
+      0%, 100% {
+        color: var(--text-faint, #787d78);
+        opacity: 0.45;
+        transform: translateY(0);
+        text-shadow: none;
+      }
+      30% {
+        color: var(--accent);
+        opacity: 1;
+        transform: translateY(-0.8px);
+        text-shadow: 0 0 8px color-mix(in srgb, var(--accent) 55%, transparent);
+      }
+      60% {
+        color: var(--text);
+        opacity: 0.75;
+        transform: translateY(0);
+        text-shadow: none;
+      }
+    }
+
+    /* Dark mode */
+    html[data-theme="dark"] .flowing-letter {
+      color: var(--text-faint, #949a94);
+    }
+
+    @keyframes velaLetterFlowDark {
+      0%, 100% {
+        color: var(--text-faint, #808680);
+        opacity: 0.45;
+        transform: translateY(0);
+        text-shadow: none;
+      }
+      30% {
+        color: color-mix(in srgb, var(--accent) 85%, white);
+        opacity: 1;
+        transform: translateY(-0.8px);
+        text-shadow: 0 0 10px color-mix(in srgb, var(--accent) 65%, transparent);
+      }
+      60% {
+        color: var(--text);
+        opacity: 0.8;
+        transform: translateY(0);
+        text-shadow: none;
+      }
+    }
+
+    html[data-theme="dark"] .flowing-letter {
+      animation-name: velaLetterFlowDark;
     }
 
     /* Quiet mode & Reduced motion */
     .quiet-mode :is(.streaming-indicator, .streaming-cursor) {
       animation: none !important;
-      background: var(--surface-subtle) !important;
-      border-color: var(--border) !important;
+      background: transparent !important;
+      border: none !important;
       box-shadow: none !important;
-      backdrop-filter: none !important;
-      -webkit-backdrop-filter: none !important;
     }
 
-    .quiet-mode .streaming-indicator-spinner,
-    .quiet-mode .streaming-spinner-svg,
-    .quiet-mode .streaming-spinner-core {
+    .quiet-mode .gyro-outer-arc,
+    .quiet-mode .gyro-inner-arc,
+    .quiet-mode .gyro-core,
+    .quiet-mode .flowing-letter {
       animation: none !important;
-    }
-
-    .quiet-mode .streaming-spinner-core {
-      display: none !important;
-    }
-
-    .quiet-mode .streaming-indicator-verb {
-      animation: none !important;
-      background: none !important;
-      -webkit-text-fill-color: var(--text-soft) !important;
+      opacity: 0.7 !important;
       color: var(--text-soft) !important;
-      transition: none !important;
+      transform: none !important;
+      text-shadow: none !important;
     }
 
     @media (prefers-reduced-motion: reduce) {
-      .streaming-indicator,
-      .streaming-cursor {
+      .gyro-outer-arc,
+      .gyro-inner-arc,
+      .gyro-core,
+      .flowing-letter {
         animation: none !important;
-        transition: none !important;
-      }
-      .streaming-spinner-svg {
-        animation-duration: 3s !important;
-      }
-      .streaming-spinner-core {
-        animation: none !important;
-      }
-      .streaming-indicator-verb {
-        animation: none !important;
-        transition: none !important;
+        opacity: 0.8 !important;
+        transform: none !important;
       }
     }
 

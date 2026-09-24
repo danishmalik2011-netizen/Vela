@@ -135,126 +135,76 @@ test("VelaStreamingSpinner detects inception categories accurately", () => {
   assert.equal(indicator.detectCategory({ text: "", taskMode: "write" }), "INCEPTION_WRITE");
 });
 
-test("VelaStreamingSpinner detects active code block categories and language nuances", () => {
+test("VelaStreamingSpinner detects active code block, tables, and general generating phases", () => {
   const { indicator } = loadIndicatorInContext();
 
-  // Web stack code
+  // Active unclosed code block
   assert.equal(
-    indicator.detectCategory({ text: "Here is the component:\n```tsx\nexport function Button() {" }),
-    "CODE_WEB"
-  );
-  assert.equal(
-    indicator.detectCategory({ text: "Here is the styles:\n```css\n.button { display: flex;" }),
-    "CODE_WEB"
+    indicator.detectCategory({ text: "Here is the code:\n```typescript\nfunction start() {" }),
+    "CODE"
   );
 
-  // Database / Data code
+  // Markdown table
   assert.equal(
-    indicator.detectCategory({ text: "Here is the migration:\n```sql\nSELECT * FROM users WHERE" }),
-    "CODE_DATA"
-  );
-
-  // Systems code
-  assert.equal(
-    indicator.detectCategory({ text: "Here is the implementation:\n```rust\nfn main() {" }),
-    "CODE_SYSTEMS"
-  );
-
-  // General code
-  assert.equal(
-    indicator.detectCategory({ text: "Here is the script:\n```python\ndef solve():" }),
-    "CODE_DEFAULT"
-  );
-
-  // Closed code fence returns to narrative/prose
-  assert.equal(
-    indicator.detectCategory({ text: "Here is the script:\n```python\ndef solve(): pass\n```\nThis function finishes the task." }),
-    "PROSE_EARLY"
-  );
-});
-
-test("VelaStreamingSpinner detects markdown tables, lists, math and citations", () => {
-  const { indicator } = loadIndicatorInContext();
-
-  // Table
-  assert.equal(
-    indicator.detectCategory({ text: "Here is the breakdown:\n| Feature | Status | Priority |\n| --- | --- | --- |\n| Auth | Done | High |" }),
+    indicator.detectCategory({ text: "Here is the table:\n| Feature | Status |\n| --- | --- |\n| Gyro | Active |" }),
     "TABLES"
   );
 
-  // List breakdown
+  // General generating phase once code block is closed
   assert.equal(
-    indicator.detectCategory({ text: "Please follow these steps:\n1. Open settings\n2. Configure API key\n3. Click save" }),
-    "LISTS"
-  );
-
-  // Math formula
-  assert.equal(
-    indicator.detectCategory({ text: "The theorem states that:\n$$E = mc^2$$" }),
-    "MATH"
-  );
-
-  // Citations / URLs
-  assert.equal(
-    indicator.detectCategory({ text: "According to recent studies [source: https://example.com/paper]:" }),
-    "CITATIONS"
+    indicator.detectCategory({ text: "Here is code:\n```python\nprint(1)\n```\nExplanation goes here." }),
+    "GENERATING"
   );
 });
 
-test("VelaStreamingSpinner categorizes generative prose progression and closing", () => {
+test("VelaStreamingSpinner maps phases to static bespoke verbs", () => {
   const { indicator } = loadIndicatorInContext();
 
-  // Early prose (< 350 chars)
-  assert.equal(
-    indicator.detectCategory({ text: "To understand this architecture, we begin with the fundamental design pattern." }),
-    "PROSE_EARLY"
-  );
-
-  // Mid prose (350 - 1400 chars)
-  const midText = "Detailed explanation paragraph here. ".repeat(20);
-  assert.equal(indicator.detectCategory({ text: midText }), "PROSE_MID");
-
-  // Late prose (> 1400 chars)
-  const lateText = "Comprehensive analysis paragraph here. ".repeat(60);
-  assert.equal(indicator.detectCategory({ text: lateText }), "PROSE_LATE");
-
-  // Concluding keywords
-  assert.equal(
-    indicator.detectCategory({ text: "In conclusion, the system satisfies all operational requirements." }),
-    "PROSE_CLOSING"
-  );
+  assert.equal(indicator.STATIC_CATEGORY_VERBS.INCEPTION_DEFAULT, "Thinking…");
+  assert.equal(indicator.STATIC_CATEGORY_VERBS.INCEPTION_REASONING, "Reasoning…");
+  assert.equal(indicator.STATIC_CATEGORY_VERBS.INCEPTION_RESEARCH, "Investigating…");
+  assert.equal(indicator.STATIC_CATEGORY_VERBS.INCEPTION_CODE, "Architecting…");
+  assert.equal(indicator.STATIC_CATEGORY_VERBS.INCEPTION_WRITE, "Drafting…");
+  assert.equal(indicator.STATIC_CATEGORY_VERBS.CODE, "Writing code…");
+  assert.equal(indicator.STATIC_CATEGORY_VERBS.TABLES, "Structuring data…");
+  assert.equal(indicator.STATIC_CATEGORY_VERBS.GENERATING, "Synthesizing…");
 });
 
-test("getSmartVerb returns beautiful verbs and respects smart cadence", () => {
+test("renderFlowingLetters builds cascading wave spans for each character", () => {
   const { indicator } = loadIndicatorInContext();
-  const session = { lastSwitch: 0, category: null, verb: "" };
+  const html = indicator.renderFlowingLetters("Writing code…");
+
+  assert.match(html, /<span class="flowing-letter" style="--letter-idx:0">W<\/span>/);
+  assert.match(html, /<span class="flowing-space">&nbsp;<\/span>/);
+  assert.match(html, /<span class="flowing-letter" style="--letter-idx:12">…<\/span>/);
+});
+
+test("getSmartVerb returns static verbs for active phase", () => {
+  const { indicator } = loadIndicatorInContext();
+  const session = { category: null, verb: "" };
 
   const initialVerb = indicator.getSmartVerb({ text: "", taskMode: "chat" }, session);
-  assert.ok(initialVerb.endsWith("…"), "Verb should end with an ellipsis");
-  assert.ok(indicator.VERB_CATEGORIES.INCEPTION_DEFAULT.includes(initialVerb));
+  assert.equal(initialVerb, "Thinking…");
 
-  // Urgent category switch (Inception -> Code) switches immediately regardless of dwell
-  const codeVerb = indicator.getSmartVerb({ text: "```javascript\nconst a = 1;" }, session);
-  assert.ok(indicator.VERB_CATEGORIES.CODE_WEB.includes(codeVerb));
-  assert.equal(session.category, "CODE_WEB");
-
-  // Subsequent call within dwell time maintains stable verb to prevent flicker
-  const sameCodeVerb = indicator.getSmartVerb({ text: "```javascript\nconst a = 1;\nconst b = 2;" }, session);
-  assert.equal(sameCodeVerb, codeVerb, "Verb should dwell without twitching");
+  const codeVerb = indicator.getSmartVerb({ text: "```typescript\ninterface Config {" }, session);
+  assert.equal(codeVerb, "Writing code…");
+  assert.equal(session.category, "CODE");
 });
 
-test("createIndicatorHTML produces accessible, beautiful SVG spinner markup", () => {
+test("createIndicatorHTML produces bubble-free celestial gyroscope markup with flowing letters", () => {
   const { indicator } = loadIndicatorInContext();
   const html = indicator.createIndicatorHTML("Architecting…");
 
   assert.match(html, /class="streaming-cursor streaming-indicator"/);
   assert.match(html, /role="status"/);
   assert.match(html, /aria-live="polite"/);
-  assert.match(html, /<svg class="streaming-spinner-svg"/);
-  assert.match(html, /class="spinner-track"/);
-  assert.match(html, /class="spinner-head"/);
-  assert.match(html, /class="streaming-spinner-core"/);
-  assert.match(html, /<span class="streaming-indicator-verb">Architecting…<\/span>/);
+  assert.match(html, /data-current-verb="Architecting…"/);
+  assert.match(html, /<svg class="streaming-gyro-svg"/);
+  assert.match(html, /class="gyro-outer-arc"/);
+  assert.match(html, /class="gyro-inner-arc"/);
+  assert.match(html, /class="gyro-core"/);
+  assert.match(html, /class="flowing-letter"/);
+  assert.match(html, /--letter-idx:0/);
 });
 
 test("attach mounts the indicator and preserves trailing DOM position", () => {

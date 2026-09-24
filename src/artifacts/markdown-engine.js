@@ -446,6 +446,15 @@
   // Replaces whole innerHTML replacement with block-level diffing to prevent layout shifts & loss of state.
   function diffAndRender(container, markdown, options = {}) {
     if (!container) return;
+
+    // Preserve the streaming indicator during incremental streaming reconcile
+    const activeIndicator = options.isStreaming
+      ? container.querySelector(".streaming-indicator")
+      : null;
+    if (activeIndicator && activeIndicator.parentNode === container) {
+      activeIndicator.remove();
+    }
+
     const newHtml = renderMarkdownToHtml(markdown, options);
 
     // Create a virtual container to parse elements
@@ -499,6 +508,11 @@
     // Remove any leftover old children
     while (container.children.length > newChildren.length) {
       container.removeChild(container.lastChild);
+    }
+
+    // Restore persistent streaming indicator without re-creating DOM
+    if (activeIndicator) {
+      container.appendChild(activeIndicator);
     }
 
     // Attach task list interactive change handlers
